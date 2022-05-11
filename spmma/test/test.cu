@@ -1,7 +1,7 @@
 //
 // Created by dbettkk on 2022/3/30.
 //
-#include"../spmma/sparse_conv.cuh"
+#include"../kernels/sparse_conv.cuh"
 
 void test_matmul() {
     int m = 256, k = 256, n = 256;
@@ -106,18 +106,18 @@ int main() {
     std::default_random_engine e(sd());
     std::uniform_int_distribution<unsigned> u(1, 255); // 闭区间
 
-    int data_n = 1, data_c = 3;
-    int kernel_n = 64, kernel_c = data_c;
-    int data_h = u(e), data_w = data_h;
-    int kernel_h = u(e);
-    while (kernel_h >= data_h) kernel_h = u(e);
+    int data_n = 1, data_c = 1;
+    int kernel_n = 16, kernel_c = data_c;
+    int data_h = 7, data_w = 7;
+    int kernel_h = 4;
     int kernel_w = kernel_h;
 
     printf("DATA SIZE: %d,%d,%d,%d\n", data_n, data_c, data_h, data_w);
     printf("KERNEL SIZE: %d,%d,%d,%d\n", kernel_n, kernel_c, kernel_h, kernel_w);
     printf("padding: %d, stride: %d, dilation: %d\n", 0, 1, 1);
 
-    benchmark_conv(data_n, data_c, data_h, data_w, kernel_n, kernel_c, kernel_h, kernel_w);
+    for(int i = 0; i < 20; i++) benchmark_conv(data_n, data_c, data_h, data_w, kernel_n, kernel_c, kernel_h, kernel_w);
+
 }
 
 //int main() {

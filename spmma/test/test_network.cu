@@ -4,7 +4,7 @@
 //
 // Created by dbettkk on 2022/4/17.
 //
-#include"../spmma/sparse_conv.cuh"
+#include"../kernels/sparse_conv.cuh"
 
 float *read_bin(int size, const std::string& path) {
     float *ret = new float[size];
