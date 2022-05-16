@@ -71,7 +71,7 @@ bool MatrixParam::checkCorrect(bool isPrintMatrix) {
     int total = m * n, cnt = 0;
     int p = 0;
     for (int i = 0; i < m * n; i++) {
-        if (abs(matD[i] - cpu[i]) > 0.1) {
+        if (abs(matD[i] - cpu[i]) > 0.01) {
             cnt++;
             if(p < 2) {
                 printf("%f:%f\n", matD[i], cpu[i]);

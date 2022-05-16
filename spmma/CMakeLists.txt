@@ -12,7 +12,7 @@ add_executable(SparseConv
         utils/util.cuh  utils/util.cu
         utils/CudaTime.cu utils/CudaTime.cuh test/test.cu
         kernels/kernels.cuh utils/const.cuh
-        test/test_network.cu)
+        test/test_network.cu test/test_resnet.cu)
 
 set_target_properties(SparseConv PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON)

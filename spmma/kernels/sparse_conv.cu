@@ -21,6 +21,7 @@ Tensor4d *sparse_conv(ConvParam *param) {
 
     float *dD;
     CUDA_CHECK( cudaMalloc((void **)&dD, sizeof(float) * param->getM() * param->getN()) )
+
     auto mm_out = new MatrixParam(param->getN(), param->getK(), param->getM());
 
     spmma_matmul(d_kernel, d_im2col, param->getN(), param->getK(), param->getM(), false,
@@ -45,6 +46,7 @@ Tensor4d *sparse_conv(ConvParam *param) {
     out << "total: " << totalTime << "ms\n";
     out.close();
 
+    //return ret;
 
     // check correct
     MatrixParam* check_im2col = param->im2col();

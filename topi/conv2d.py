@@ -72,12 +72,13 @@ def topi_conv2d(data_size: list, filter_size: list, padding: int, stride: int):
         f(a, b, out)
 
         # torch不支持float16
-        ans = torch.nn.functional.conv2d(
-          torch.from_numpy(image_data), torch.from_numpy(kernel_data), stride=stride, padding=padding)
-        check_correct(out.numpy(), ans.numpy(), 0.01)
+        # ans = torch.nn.functional.conv2d(
+        #   torch.from_numpy(image_data), torch.from_numpy(kernel_data), stride=stride, padding=padding)
+        # check_correct(out.numpy(), ans.numpy(), 0.01)
 
         evaluator = f.time_evaluator(f.entry_name, tvm.cuda(0), number=20)
-        print("Convolution: %f ms" % (evaluator(a, b, out).mean * 1e3))
+        # print("Convolution: %f ms" % (evaluator(a, b, out).mean * 1e3))
+        time.append(evaluator(a, b, out).mean * 1e3)
 
 
 if __name__ == '__main__':
