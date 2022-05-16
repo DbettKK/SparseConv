@@ -1,7 +1,7 @@
 import tvm
 from tvm import te, topi
 import numpy as np
-import torch
+#import torch
 
 
 time = []
@@ -85,6 +85,11 @@ if __name__ == '__main__':
     # RTX3070-Windows
     # topi: 0.01ms
     # spmma: gemm-0.02ms / total-0.3ms
+
+    # A100
+    # topi: 0.005306 ms
+    # spmma: 
+    # 
     _data_size = [1, 1, 7, 7]
     _filter_size = [16, 1, 4, 4]
     _padding = 0
