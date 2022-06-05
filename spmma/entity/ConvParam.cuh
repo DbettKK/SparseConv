@@ -17,9 +17,9 @@ class ConvParam {
 
     Tensor4d* padData();
 
-    float* data2col();
+    half* data2col();
 
-    float *kernel2col();
+    half *kernel2col();
 public:
     ConvParam();
 
@@ -55,10 +55,10 @@ public:
      * kernel_out: device kernel平铺
      * im2col_out: device im2col后的结果
      */
-    void im2colGPU(float *kernel_out, float *im2col_out);
+    void im2colGPU(half *kernel_out, half *im2col_out);
 
     // col: device 需要col2im的输入
-    Tensor4d* col2imGPU(float *col);
+    Tensor4d* col2imGPU(half *col);
 
     bool checkIm2col();
 };

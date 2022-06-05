@@ -113,7 +113,7 @@ Dtype* transpose(Dtype *item, int row, int col) {
 template <typename Dtype>
 bool cmpMatrix(Dtype *item1, Dtype *item2, int totalSize) {
     for (int i = 0; i < totalSize; i++) {
-        if (item1[i] != item2[i]) {
+        if (__half2float(item1[i]) != __half2float(item2[i])) {
             return false;
         }
     }
@@ -122,6 +122,7 @@ bool cmpMatrix(Dtype *item1, Dtype *item2, int totalSize) {
 
 template <typename Dtype>
 bool check_sparse(Dtype *item, int row, int col) {
+    printf("m: %d, k: %d\n", row, col);
     Dtype *host = new Dtype[row * col];
     cudaMemcpy(host, item, sizeof(Dtype) * row * col, cudaMemcpyDeviceToHost);
 //    printf("padding: \n");
@@ -135,7 +136,7 @@ bool check_sparse(Dtype *item, int row, int col) {
         for (int j = 0; j < col; j+=4) {
             int zero_cnt = 0;
             for (int start = 0; start < 4; start++) {
-                if (host[i * col + j + start] == 0) {
+                if (__half2float(host[i * col + j + start]) == 0) {
                     zero_cnt++;
                 }
             }

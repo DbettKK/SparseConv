@@ -13,10 +13,13 @@
 
 class MatrixParam {
     int m{}, k{}, n{};
-    float *matA{}, *matB{}, *matC{}, *matD{};
-
+    half *matA{}, *matB{}, *matC{}, *matD{};
+    half *cmprA{};
+    int *binIndex{};
 public:
-    MatrixParam(int m, int k, int n, float *matA, float *matB, float *matC, float *matD);
+    MatrixParam(int m, int k, int n, half *matA, half *matB, half *matC, half *matD, half *cmprA, int *binIndex);
+
+    MatrixParam(int m, int k, int n, half *matA, half *matB, half *matC, half *matD);
 
     MatrixParam(int m, int k, int n);
 
@@ -24,15 +27,15 @@ public:
 
     ~MatrixParam();
 
-    float *getMatA() const;
+    half *getMatA() const;
 
-    float *getMatB() const;
+    half *getMatB() const;
 
-    float *getMatD() const;
+    half *getMatD() const;
 
-    void setMatD(float *matD);
+    void setMatD(half *matD);
 
-    static void printMatrix(float *item, int row, int col, const std::string& msg);
+    static void printMatrix(half *item, int row, int col, const std::string& msg);
 
     void printMatrix(char whichMatrix);
 
@@ -48,9 +51,9 @@ public:
 
     void generateRandSparseData(int bound);
 
-    void copyFromDevice(const float* dA, const float* dB, const float* dC, const float* dD, int inputM, int inputK, int inputN);
+    void copyFromDevice(const half* dA, const half* dB, const half* dC, const half* dD, int inputM, int inputK, int inputN);
 
-    void copyToDevice(float *dMatrix, char whichMatrix);
+    void copyToDevice(half *dMatrix, char whichMatrix);
 };
 
 

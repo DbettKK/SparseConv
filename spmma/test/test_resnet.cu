@@ -64,6 +64,7 @@ void test_resnet50() {
     }
 }
 
-int main() {
-    test_resnet50();
-}
+//int main() {
+//    //test_resnet50();
+//    for (int i = 0; i < 10; i++) test_conv(1,1,7,7,16,4,4,0,1,"","");
+//}

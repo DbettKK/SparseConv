@@ -9,15 +9,15 @@ void test_matmul() {
     param->readFromBin("../data/a.bin", "../data/b.bin", "../data/c.bin");
     //param->printMatrix('A');
 
-    float *dA, *dB;
-    CHECK_CUDA( cudaMalloc((void **)&dA, m * k * sizeof(float)) )
-    CHECK_CUDA( cudaMalloc((void **)&dB, k * n * sizeof(float)) )
+    half *dA, *dB;
+    CHECK_CUDA( cudaMalloc((void **)&dA, m * k * sizeof(half)) )
+    CHECK_CUDA( cudaMalloc((void **)&dB, k * n * sizeof(half)) )
     param->copyToDevice(dA, 'A');
     param->copyToDevice(dB, 'B');
 
     auto *out = new MatrixParam(m, k, n);
-    float *outputD;
-    CHECK_CUDA( cudaMalloc((void **)&outputD, m * n * sizeof(float)) )
+    half *outputD;
+    CHECK_CUDA( cudaMalloc((void **)&outputD, m * n * sizeof(half)) )
 
     spmma_matmul(dA, dB, m, k, n, true, outputD, out);
 
@@ -34,15 +34,15 @@ void benchmark_matmul(int m, int k, int n) {
     auto param = new MatrixParam(m, k, n);
     param->generateRandData(100);
 
-    float *dA, *dB;
-    CHECK_CUDA( cudaMalloc((void **)&dA, m * k * sizeof(float)) )
-    CHECK_CUDA( cudaMalloc((void **)&dB, k * n * sizeof(float)) )
+    half *dA, *dB;
+    CHECK_CUDA( cudaMalloc((void **)&dA, m * k * sizeof(half)) )
+    CHECK_CUDA( cudaMalloc((void **)&dB, k * n * sizeof(half)) )
     param->copyToDevice(dA, 'A');
     param->copyToDevice(dB, 'B');
 
     auto *out = new MatrixParam(m, k, n);
-    float *outputD;
-    CHECK_CUDA( cudaMalloc((void **)&outputD, m * n * sizeof(float)) )
+    half *outputD;
+    CHECK_CUDA( cudaMalloc((void **)&outputD, m * n * sizeof(half)) )
 
     spmma_matmul(dA, dB, m, k, n, true, outputD, out);
 

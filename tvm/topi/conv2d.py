@@ -1,7 +1,8 @@
 import tvm
 from tvm import te, topi
 import numpy as np
-#import torch
+import ctypes
+# import torch
 
 
 time = []
@@ -50,16 +51,18 @@ def topi_cuda(data_size: list, filter_size: list, padding: int, stride: int, d_p
         # check_correct(out.numpy(), ans.numpy(), 0.01)
         evaluator = f.time_evaluator(f.entry_name, tvm.cuda(0), number=1)
         print("Convolution: %f ms" % (evaluator(a, b, out).mean * 1e3))
+        print(f.imported_modules[0].get_source())
         time.append(evaluator(a, b, out).mean * 1e3)
 
 
-def topi_conv2d(data_size: list, filter_size: list, padding: int, stride: int):
+def topi_conv2d(data_size: list, filter_size: list, padding, stride):
     with tvm.target.Target("cuda"):
         Data = te.placeholder(data_size, name='Data', dtype='float32')
         Filter = te.placeholder(filter_size, name='Filter', dtype='float32')
-        Out = topi.cuda.conv2d_nchw(Data, Filter, stride, padding, 1)
+        Out = topi.cuda.conv2d_nhwc_tensorcore(Data, Filter, stride, padding, 1, 'float32')
 
-        s = topi.cuda.schedule_conv2d_nchw([Out])
+        s = topi.cuda.schedule_conv2d_nhwc_tensorcore([Out])
+
         f = tvm.build(s, [Data, Filter, Out], "cuda")
 
         image_data = np.random.uniform(1, 10, size=data_size).astype('float32')
@@ -76,23 +79,27 @@ def topi_conv2d(data_size: list, filter_size: list, padding: int, stride: int):
         #   torch.from_numpy(image_data), torch.from_numpy(kernel_data), stride=stride, padding=padding)
         # check_correct(out.numpy(), ans.numpy(), 0.01)
 
-        evaluator = f.time_evaluator(f.entry_name, tvm.cuda(0), number=20)
-        # print("Convolution: %f ms" % (evaluator(a, b, out).mean * 1e3))
-        time.append(evaluator(a, b, out).mean * 1e3)
+        evaluator = f.time_evaluator(f.entry_name, tvm.cuda(0), number=10)
+        print("Convolution: %f ms" % (evaluator(a, b, out).mean * 1e3))
+        # with open("./cuda/wmma.cu", 'w') as out:
+        #     out.write(f.imported_modules[0].get_source())
+        # print(tvm.lower(s, [Data, Filter, Out]))
+        # print(f.imported_modules[0].get_source())
+        # time.append(evaluator(a, b, out).mean * 1e3)
 
 
 if __name__ == '__main__':
     # RTX3070-Windows
     # topi: 0.01ms
     # spmma: gemm-0.02ms / total-0.3ms
-
+    # The shape of (batch, in_channel, num_filter) must be multiple of (16, 16, 16) or (32, 16, 8) or (8, 16, 32) for now
     # A100
     # topi: 0.005306 ms
     # spmma: 
     # 
-    _data_size = [1, 1, 7, 7]
-    _filter_size = [16, 1, 4, 4]
-    _padding = 0
-    _stride = 1
+    _data_size = [16, 7, 7, 16] # nhwc
+    _filter_size = [4, 4, 16, 16] # hwio
+    _padding = [0, 0]
+    _stride = [1, 1]
 
     topi_conv2d(_data_size, _filter_size, _padding, _stride)

@@ -8,6 +8,7 @@
 #include<cusparseLt.h>
 #include<cuda_fp16.h>
 #include<cuda_runtime_api.h> // cudaMalloc, cudaMemcpy, etc.
+#include<string>
 
 #include "../entity/ConvParam.cuh"
 #include "../utils/CudaTime.cuh"
@@ -16,6 +17,6 @@
     src: device IN
     dest: device OUT (need to allocate)
 */
-void spmma_matmul(const float *inputA, const float *inputB, int inputM, int inputK, int inputN, bool isValid, float *outputD, MatrixParam *retParam);
+void spmma_matmul(const half *inputA, const half *inputB, int inputM, int inputK, int inputN, bool isValid, half *outputD, MatrixParam *retParam);
 
 #endif //SPARSECONVOLUTION_SPARSE_MATMUL_CUH

@@ -9,8 +9,8 @@ const int M = 16;
 const int N = 16;
 const int K = 16;
 
-const int DATA_N = 4, DATA_C = 3, DATA_H = 16, DATA_W = 16;
-const int KERNEL_N = 4, KERNEL_C = 3, KERNEL_H = 3, KERNEL_W = 3;
+const int DATA_N = 16, DATA_C = 3, DATA_H = 256, DATA_W = 256;
+const int KERNEL_N = 64, KERNEL_C = 3, KERNEL_H = 7, KERNEL_W = 7;
 
 const int PADDING = 0;
 const int STRIDE = 1;

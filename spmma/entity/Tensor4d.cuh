@@ -11,7 +11,7 @@
 #include <cuda_fp16.h>
 
 class Tensor4d {
-    float *tensor;
+    half *tensor;
     int n, c, h, w;
 
 public:
@@ -19,11 +19,11 @@ public:
 
     Tensor4d(int n, int c, int h, int w);
 
-    Tensor4d(float *tensor, int n, int c, int h, int w);
+    Tensor4d(half *tensor, int n, int c, int h, int w);
 
     ~Tensor4d();
 
-    float *getTensor() const;
+    half *getTensor() const;
 
     int getN() const;
 

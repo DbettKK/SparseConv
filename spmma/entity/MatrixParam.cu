@@ -5,21 +5,27 @@
 #include "MatrixParam.cuh"
 
 
-MatrixParam::MatrixParam(int m, int k, int n, float *matA, float *matB, float *matC, float *matD) : m(m), k(k), n(n),
+MatrixParam::MatrixParam(int m, int k, int n, half *matA, half *matB, half *matC, half *matD, half *cmprA,
+                         int *binIndex) : m(m), k(k), n(n), matA(matA), matB(matB), matC(matC), matD(matD),
+                                          cmprA(cmprA), binIndex(binIndex) {}
+
+MatrixParam::MatrixParam(int m, int k, int n, half *matA, half *matB, half *matC, half *matD) : m(m), k(k), n(n),
                                                                                                 matA(matA), matB(matB),
                                                                                                 matC(matC),
                                                                                                 matD(matD) {}
 
 MatrixParam::MatrixParam(int m, int k, int n) : m(m), k(k), n(n), matA(nullptr), matB(nullptr), matC(nullptr),
-                                                matD(nullptr) {}
+                                                matD(nullptr),
+                                                cmprA(nullptr), binIndex(nullptr) {}
 
 MatrixParam::MatrixParam() = default;
 
-void MatrixParam::printMatrix(float *item, int row, int col, const std::string& msg) {
+void MatrixParam::printMatrix(half *item, int row, int col, const std::string& msg) {
     printf("%s\n", msg.c_str());
     for (int i = 0; i < row; i++) {
         for (int j = 0; j < col; j++) {
-            printf("%f ", item[i * col + j]);
+            printf("%d ", __half2int_rz(item[i * col + j]));
+            //printf("%f ", __half2float(item[i * col + j]));
         }
         printf("\n");
     }
@@ -53,28 +59,34 @@ void MatrixParam::printAllMatrix() {
 }
 
 bool MatrixParam::checkCorrect(bool isPrintMatrix) {
-    auto cpu = new float[m * n];
+    half *cpu = new half[m * n];
     for (int i = 0; i < m; i++) {
         for (int j = 0; j < n; j++) {
             float sum  = 0.0f;
             for (int v = 0; v < k; v++) {
                 int posA =  i * k + v; // A[i][v]
                 int posB =  v * n + j; // B[v][j]
-                sum += matA[posA] * matB[posB];
+                sum += __half2float(matA[posA]) * __half2float(matB[posB]);
             }
             int posRet = i * n + j;
-            cpu[posRet] = sum;  // [i][j]
+            cpu[posRet] = __float2half(sum);  // [i][j]
         }
+        // 检验速度用 printf("%d\n", i);
     }
     if (isPrintMatrix) printMatrix(cpu, m, n, "cpu");
     // diff
     int total = m * n, cnt = 0;
     int p = 0;
     for (int i = 0; i < m * n; i++) {
-        if (abs(matD[i] - cpu[i]) > 0.01) {
+        if (abs(__half2float(matD[i]) - __half2float(cpu[i])) > 0.0001) {
             cnt++;
-            if(p < 2) {
-                printf("%f:%f\n", matD[i], cpu[i]);
+            if (p < 2) {
+                printf("%f:%f\n", __half2float(matD[i]), __half2float(cpu[i]));
+                p++;
+            }
+        } else {
+            if (p < 1) {
+                printf("%f:%f\n", __half2float(matD[i]), __half2float(cpu[i]));
                 p++;
             }
         }
@@ -86,10 +98,10 @@ bool MatrixParam::checkCorrect(bool isPrintMatrix) {
 }
 
 void MatrixParam::initIfNull() {
-    if (matA == nullptr) matA = new float[m * k];
-    if (matB == nullptr) matB = new float[k * n];
-    if (matC == nullptr) matC = new float[m * n];
-    if (matD == nullptr) matD = new float[m * n];
+    if (matA == nullptr) matA = new half[m * k];
+    if (matB == nullptr) matB = new half[k * n];
+    if (matC == nullptr) matC = new half[m * n];
+    if (matD == nullptr) matD = new half[m * n];
 }
 
 void MatrixParam::readFromBin(const std::string& matAPath, const std::string& matBPath, const std::string& matCPath) {
@@ -100,9 +112,9 @@ void MatrixParam::readFromBin(const std::string& matAPath, const std::string& ma
 
     initIfNull();
 
-    inA.read((char *)matA, m * k * sizeof(float));
-    inB.read((char *)matB, k * n * sizeof(float));
-    inC.read((char *)matC, m * n * sizeof(float));
+    inA.read((char *)matA, m * k * sizeof(half));
+    inB.read((char *)matB, k * n * sizeof(half));
+    inC.read((char *)matC, m * n * sizeof(half));
 
     inA.close();
     inB.close();
@@ -116,9 +128,9 @@ void MatrixParam::generateRandData(int bound) {
     std::default_random_engine e(sd());
     std::uniform_int_distribution<unsigned> u(0, bound); // 闭区间
 
-    for (int i = 0; i < m * k; i++)  matA[i] = float(u(e));
-    for (int i = 0; i < k * n; i++)  matB[i] = float(u(e));
-    for (int i = 0; i < m * n; i++)  matC[i] = 0;
+    for (int i = 0; i < m * k; i++)  matA[i] = __uint2half_rn(u(e));
+    for (int i = 0; i < k * n; i++)  matB[i] = __uint2half_rn(u(e));
+    for (int i = 0; i < m * n; i++)  matC[i] = __uint2half_rn(0);
 
 }
 
@@ -130,44 +142,44 @@ void MatrixParam::generateRandSparseData(int bound) {
     std::default_random_engine e(sd());
     std::uniform_int_distribution<unsigned> u(0, bound); // 闭区间
 
-    for (int i = 0; i < m * k; i++)  matA[i] = float(u(e));
-    for (int i = 0; i < k * n; i++)  matB[i] = float(u(e));
-    for (int i = 0; i < m * n; i++)  matC[i] = float(0);
+    for (int i = 0; i < m * k; i++)  matA[i] = __uint2half_rn(u(e));
+    for (int i = 0; i < k * n; i++)  matB[i] = __uint2half_rn(u(e));
+    for (int i = 0; i < m * n; i++)  matC[i] = __uint2half_rn(0);
 }
 
-float *MatrixParam::getMatD() const {
+half *MatrixParam::getMatD() const {
     return matD;
 }
 
-void MatrixParam::copyFromDevice(const float* dA, const float* dB, const float* dC, const float* dD, int inputM, int inputK, int inputN) {
+void MatrixParam::copyFromDevice(const half* dA, const half* dB, const half* dC, const half* dD, int inputM, int inputK, int inputN) {
     // 从gpu上拷贝矩阵数据
     initIfNull();
-    restoreMatrix<float>(dA, inputM, inputK, matA, m, k, false);
-    restoreMatrix<float>(dB, inputK, inputN, matB, k, n, false);
-    restoreMatrix<float>(dC, inputM, inputN, matC, m, n, false);
-    restoreMatrix<float>(dD, inputM, inputN, matD, m, n, false);
+    restoreMatrix<half>(dA, inputM, inputK, matA, m, k, false);
+    restoreMatrix<half>(dB, inputK, inputN, matB, k, n, false);
+    restoreMatrix<half>(dC, inputM, inputN, matC, m, n, false);
+    restoreMatrix<half>(dD, inputM, inputN, matD, m, n, false);
 }
 
-void MatrixParam::copyToDevice(float *dMatrix, char whichMatrix) {
+void MatrixParam::copyToDevice(half *dMatrix, char whichMatrix) {
     switch (whichMatrix) {
-        case 'A': CHECK_CUDA( cudaMemcpy(dMatrix, matA, m * k * sizeof(float), cudaMemcpyHostToDevice) ) break;
-        case 'B': CHECK_CUDA( cudaMemcpy(dMatrix, matB, k * n * sizeof(float), cudaMemcpyHostToDevice) ) break;
-        case 'C': CHECK_CUDA( cudaMemcpy(dMatrix, matC, m * n * sizeof(float), cudaMemcpyHostToDevice) ) break;
-        case 'D': CHECK_CUDA( cudaMemcpy(dMatrix, matD, m * n * sizeof(float), cudaMemcpyHostToDevice) ) break;
+        case 'A': CHECK_CUDA( cudaMemcpy(dMatrix, matA, m * k * sizeof(half), cudaMemcpyHostToDevice) ) break;
+        case 'B': CHECK_CUDA( cudaMemcpy(dMatrix, matB, k * n * sizeof(half), cudaMemcpyHostToDevice) ) break;
+        case 'C': CHECK_CUDA( cudaMemcpy(dMatrix, matC, m * n * sizeof(half), cudaMemcpyHostToDevice) ) break;
+        case 'D': CHECK_CUDA( cudaMemcpy(dMatrix, matD, m * n * sizeof(half), cudaMemcpyHostToDevice) ) break;
         default:
             printf("==[copyToDevice] nothing to copy==\n");
     }
 }
 
-float *MatrixParam::getMatA() const {
+half *MatrixParam::getMatA() const {
     return matA;
 }
 
-float *MatrixParam::getMatB() const {
+half *MatrixParam::getMatB() const {
     return matB;
 }
 
-void MatrixParam::setMatD(float *paramD) {
+void MatrixParam::setMatD(half *paramD) {
     MatrixParam::matD = paramD;
 }
 

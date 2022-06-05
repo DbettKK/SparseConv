@@ -6,10 +6,10 @@
 //
 #include"../kernels/sparse_conv.cuh"
 
-float *read_bin(int size, const std::string& path) {
-    float *ret = new float[size];
+half *read_bin(int size, const std::string& path) {
+    half *ret = new half[size];
     std::ifstream in(path, std::ios::binary);
-    in.read((char *)ret, sizeof(float) * size);
+    in.read((char *)ret, sizeof(half) * size);
     //for(int i = 0; i < size; i++) ret[i] = int(ret[i]);
     in.close();
     return ret;
@@ -40,16 +40,16 @@ void test_matmul_conv(int d_n, int d_c, int d_h, int d_w, int f_n, int f_c, int 
     int out_w = (d_w + 2 * padding - f_w) / stride + 1;
     int n = d_n * out_h * out_w;
 
-    float *inA, *inB;
-    float *hA = read_bin(m * k, a_path);
-    float *hB = read_bin(k * n, b_path);
-    CHECK_CUDA( cudaMalloc((void **)&inA, sizeof(float) * m * k) )
-    CHECK_CUDA( cudaMalloc((void **)&inB, sizeof(float) * k * n) )
-    CHECK_CUDA( cudaMemcpy(inA, hA, sizeof(float) * m * k, cudaMemcpyHostToDevice) )
-    CHECK_CUDA( cudaMemcpy(inB, hB, sizeof(float) * k * n, cudaMemcpyHostToDevice) )
+    half *inA, *inB;
+    half *hA = read_bin(m * k, a_path);
+    half *hB = read_bin(k * n, b_path);
+    CHECK_CUDA( cudaMalloc((void **)&inA, sizeof(half) * m * k) )
+    CHECK_CUDA( cudaMalloc((void **)&inB, sizeof(half) * k * n) )
+    CHECK_CUDA( cudaMemcpy(inA, hA, sizeof(half) * m * k, cudaMemcpyHostToDevice) )
+    CHECK_CUDA( cudaMemcpy(inB, hB, sizeof(half) * k * n, cudaMemcpyHostToDevice) )
 
-    float *outputD;
-    CHECK_CUDA( cudaMalloc((void **)&outputD, sizeof(float) * m * n) )
+    half *outputD;
+    CHECK_CUDA( cudaMalloc((void **)&outputD, sizeof(half) * m * n) )
     auto test = new MatrixParam(m, k, n);
     spmma_matmul(inA, inB, m, k, n, false, outputD, test);
 
@@ -193,15 +193,15 @@ void test_sparse() {
 //        printf("\n");
 //    }
 
-    float *dA, *dB, *dC, *dD;
-    cudaMalloc((void **)&dA, m * k * sizeof(float));
-    cudaMalloc((void **)&dB, k * n * sizeof(float));
-    cudaMalloc((void **)&dC, m * n * sizeof(float));
-    cudaMalloc((void **)&dD, m * n * sizeof(float));
-    cudaMemcpy(dA, hA, m * k * sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(dB, hB, n * k * sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemset(dC, 0, m * n * sizeof(float));
-    cudaMemset(dD, 0, m * n * sizeof(float));
+    half *dA, *dB, *dC, *dD;
+    cudaMalloc((void **)&dA, m * k * sizeof(half));
+    cudaMalloc((void **)&dB, k * n * sizeof(half));
+    cudaMalloc((void **)&dC, m * n * sizeof(half));
+    cudaMalloc((void **)&dD, m * n * sizeof(half));
+    cudaMemcpy(dA, hA, m * k * sizeof(half), cudaMemcpyHostToDevice);
+    cudaMemcpy(dB, hB, n * k * sizeof(half), cudaMemcpyHostToDevice);
+    cudaMemset(dC, 0, m * n * sizeof(half));
+    cudaMemset(dD, 0, m * n * sizeof(half));
 
     MatrixParam *p = new MatrixParam(m, k, n);
 
