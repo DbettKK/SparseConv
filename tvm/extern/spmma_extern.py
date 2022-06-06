@@ -26,14 +26,27 @@ def make_spmma_data(size: int, bound: int, data_type) -> np.ndarray:
 
 def make_sparse_kernel(im_n: int, im_k: int, bound: int, data_type) -> np.ndarray:
     ret = make_dense_data(im_n * im_k, bound, data_type)
-    for i in range(im_n):
-        for j in range(im_k // 2):
-            index = i * im_k + j * 2
-            if index + 1 >= im_k * im_n:
-                ret[index] = 0
-            else:
-                zero_index = random.randint(0, 1)
-                ret[index + zero_index] = 0
+    row = im_n
+    col = im_k
+    for i in range(row):
+        for j in range(col // 4):
+            index = i * col + j * 4
+            zero_idx1 = random.randint(0, 1)
+            zero_idx2 = 2 + random.randint(0, 1)
+            ret[index + zero_idx1] = 0
+            ret[index + zero_idx2] = 0
+    if col % 4 == 1:
+        for i in range(row):
+            ret[i * col + col // 4 * 4] = 0
+    elif col % 4 == 2:
+        for i in range(row):
+            zero_index = random.randint(0, 1)
+            ret[i * col + col // 4 * 4 + zero_index] = 0
+    elif col % 4 == 3:
+        for i in range(row):
+            zero_index = random.randint(0, 1)
+            ret[i * col + col // 4 * 4 + zero_index] = 0
+            ret[i * col + col // 4 * 4 + 2] = 0
     return ret
 
 

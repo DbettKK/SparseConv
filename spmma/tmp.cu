@@ -48,22 +48,22 @@ extern "C" void conv2d(float *f_data, float *f_filter, float *f_out) {
     half *h_filter = new half[16 * 256];
     half *h_out = new half[16 * 256];
 
-    for (int i = 0; i < 256*49; i++) h_data[i] = __float2half(f_data[i]);
-    for (int i = 0; i < 256*16; i++) h_filter[i] = __float2half(f_filter[i]);
+    for (int i = 0; i < 256 * 49; i++) h_data[i] = __float2half(f_data[i]);
+    for (int i = 0; i < 256 * 16; i++) h_filter[i] = __float2half(f_filter[i]);
 
     half *d_data, *d_filter, *d_out;
-    cudaMalloc((void **)&d_data, sizeof(half) * 256*49);
-    cudaMalloc((void **)&d_filter, sizeof(half) * 256*16);
-    cudaMalloc((void **)&d_out, sizeof(half) * 256*16);
+    cudaMalloc((void **)&d_data, sizeof(half) * 256 * 49);
+    cudaMalloc((void **)&d_filter, sizeof(half) * 256 * 16);
+    cudaMalloc((void **)&d_out, sizeof(half) * 256 * 16);
 
-    cudaMemcpy(d_data, h_data, sizeof(half) * 256*49, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_filter, h_filter, sizeof(half) * 256*16, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_data, h_data, sizeof(half) * 256 * 49, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_filter, h_filter, sizeof(half) * 256 * 16, cudaMemcpyHostToDevice);
 
     dim3 block(1, 1, 16);
     dim3 thread(32, 1, 1);
     default_function_kernel0<<<block,thread>>>(d_data, d_filter, d_out);
 
-    cudaMemcpy(h_out, d_out, sizeof(half) * 256*16, cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_out, d_out, sizeof(half) * 256 * 16, cudaMemcpyDeviceToHost);
 
     for (int i = 0; i < 16 * 256; i++) {
         if ( __half2int_rz(h_out[i]) == 0)  printf("false");
