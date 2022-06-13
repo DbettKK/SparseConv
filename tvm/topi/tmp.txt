@@ -1,0 +1,44 @@
+@main = primfn(Data_1: handle, Filter_1: handle, Conv2dOutput_1: handle) -> ()
+  attr = {"from_legacy_te_schedule": True, "global_symbol": "main", "tir.noalias": True}
+  buffers = {Conv2dOutput: Buffer(Conv2dOutput_2: Pointer(float32), float32, [16, 2, 2, 16], []),
+             Data: Buffer(Data_2: Pointer(float32), float32, [16, 7, 7, 16], []),
+             Filter: Buffer(Filter_2: Pointer(float32), float32, [4, 4, 16, 16], [])}
+  buffer_map = {Data_1: Data, Filter_1: Filter, Conv2dOutput_1: Conv2dOutput} {
+  attr [IterVar(blockIdx.z: int32, (nullptr), "ThreadIndex", "blockIdx.z")] "thread_extent" = 4;
+  allocate(Conv2dOutput.wmma.accumulator: Pointer(wmma.accumulator float32), float32, [256]), storage_scope = wmma.accumulator;
+  allocate(compute.shared: Pointer(shared float16), float16, [256]), storage_scope = shared;
+  allocate(compute.d.shared: Pointer(shared float16), float16, [256]), storage_scope = shared;
+  allocate(compute.shared.wmma.matrix_a: Pointer(wmma.matrix_a float16), float16, [256]), storage_scope = wmma.matrix_a;
+  allocate(compute.d.shared.wmma.matrix_b: Pointer(wmma.matrix_b float16), float16, [256]), storage_scope = wmma.matrix_b;
+  allocate(Conv2dOutput.wmma.accumulator.shared: Pointer(shared float32), float32, [256]), storage_scope = shared;
+  attr [IterVar(blockIdx.x: int32, (nullptr), "ThreadIndex", "blockIdx.x")] "thread_extent" = 1;
+  attr [IterVar(blockIdx.y: int32, (nullptr), "ThreadIndex", "blockIdx.y")] "thread_extent" = 1 {
+    attr [IterVar(threadIdx.y: int32, (nullptr), "ThreadIndex", "threadIdx.y")] "thread_extent" = 1;
+    attr [IterVar(threadIdx.z: int32, (nullptr), "ThreadIndex", "threadIdx.z")] "thread_extent" = 1 {
+      @tir.tvm_fill_fragment(Conv2dOutput.wmma.accumulator, 16, 16, 16, 0, 0f32, dtype=handle)
+      for (ry: int32, 0, 4) {
+        for (rx: int32, 0, 4) {
+          for (ax0.ax3.fused.outer.outer.outer.outer: int32, 0, 8) {
+            attr [IterVar(threadIdx.x: int32, (nullptr), "ThreadIndex", "threadIdx.x")] "thread_extent" = 32;
+            compute.shared[((ax0.ax3.fused.outer.outer.outer.outer*32) + threadIdx.x)] = cast(float16, (float32*)Data_2[(((((((ax0.ax3.fused.outer.outer.outer.outer*1568) + (floordiv(threadIdx.x, 16)*784)) + (floordiv(blockIdx.z, 2)*224)) + (ry*112)) + (floormod(blockIdx.z, 2)*32)) + (rx*16)) + floormod(threadIdx.x, 16))])
+          }
+          for (ax2.ax3.fused.outer.outer.outer.outer: int32, 0, 8) {
+            attr [IterVar(threadIdx.x, (nullptr), "ThreadIndex", "threadIdx.x")] "thread_extent" = 32;
+            compute.d.shared[((ax2.ax3.fused.outer.outer.outer.outer*32) + threadIdx.x)] = cast(float16, (float32*)Filter_2[((((ry*1024) + (rx*256)) + (ax2.ax3.fused.outer.outer.outer.outer*32)) + threadIdx.x)])
+          }
+          @tir.tvm_load_matrix_sync(compute.shared.wmma.matrix_a, 16, 16, 16, 0, @tir.tvm_access_ptr(@tir.type_annotation(, dtype=float16), compute.shared, 0, 256, 1, dtype=handle), 16, "row_major", dtype=handle)
+          @tir.tvm_load_matrix_sync(compute.d.shared.wmma.matrix_b, 16, 16, 16, 0, @tir.tvm_access_ptr(@tir.type_annotation(, dtype=float16), compute.d.shared, 0, 256, 1, dtype=handle), 16, "row_major", dtype=handle)
+          @tir.tvm_mma_sync(Conv2dOutput.wmma.accumulator, 0, compute.shared.wmma.matrix_a, 0, compute.d.shared.wmma.matrix_b, 0, Conv2dOutput.wmma.accumulator, 0, dtype=handle)
+        }
+      }
+      @tir.tvm_store_matrix_sync(Conv2dOutput.wmma.accumulator, 16, 16, 16, 0, @tir.tvm_access_ptr(@tir.type_annotation(, dtype=float32), Conv2dOutput.wmma.accumulator.shared, 0, 256, 2, dtype=handle), 16, "row_major", dtype=handle)
+    }
+    for (nn.inner.ff.inner.fused.outer.outer.outer.outer: int32, 0, 8) {
+      attr [IterVar(threadIdx.z, (nullptr), "ThreadIndex", "threadIdx.z")] "thread_extent" = 1;
+      attr [IterVar(threadIdx.y, (nullptr), "ThreadIndex", "threadIdx.y")] "thread_extent" = 1;
+      attr [IterVar(threadIdx.x, (nullptr), "ThreadIndex", "threadIdx.x")] "thread_extent" = 32;
+      Conv2dOutput_2[((((nn.inner.ff.inner.fused.outer.outer.outer.outer*128) + (floordiv(threadIdx.x, 16)*64)) + (blockIdx.z*16)) + floormod(threadIdx.x, 16))] = (float32*)Conv2dOutput.wmma.accumulator.shared[((nn.inner.ff.inner.fused.outer.outer.outer.outer*32) + threadIdx.x)]
+    }
+  }
+}
+

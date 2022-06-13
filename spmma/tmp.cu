@@ -76,7 +76,7 @@ int main() {
     half *h_filter = new half[16 * 256];
     half *h_out = new half[16 * 256];
 
-    for (int i = 0; i < 256*49; i++) h_data[i] = __float2half(1.0);
+    for (int i = 0; i < 256*49; i++) h_data[i] = __float2half(2.0);
     for (int i = 0; i < 256*16; i++) h_filter[i] = __float2half(1.0);
 
     half *d_data, *d_filter, *d_out;
@@ -94,7 +94,7 @@ int main() {
     cudaMemcpy(h_out, d_out, sizeof(half) * 256*16, cudaMemcpyDeviceToHost);
 
     for (int i = 0; i < 16 * 256; i++) {
-        if ( __half2int_rz(h_out[i]) == 0)  printf("false");
+        if ( __half2int_rz(h_out[i]) != 0)  printf("%d ", __half2int_rz(h_out[i]));
     }
 }
 

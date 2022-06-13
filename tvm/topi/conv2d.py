@@ -79,11 +79,13 @@ def topi_conv2d(data_size: list, filter_size: list, padding, stride):
         #   torch.from_numpy(image_data), torch.from_numpy(kernel_data), stride=stride, padding=padding)
         # check_correct(out.numpy(), ans.numpy(), 0.01)
 
-        evaluator = f.time_evaluator(f.entry_name, tvm.cuda(0), number=10)
-        print("Convolution: %f ms" % (evaluator(a, b, out).mean * 1e3))
+        # evaluator = f.time_evaluator(f.entry_name, tvm.cuda(0), number=10)
+        # print("Convolution: %f ms" % (evaluator(a, b, out).mean * 1e3))
         # with open("./cuda/wmma.cu", 'w') as out:
         #     out.write(f.imported_modules[0].get_source())
-        # print(tvm.lower(s, [Data, Filter, Out]))
+        # tvm.lower(s, [Data, Filter, Out])
+        with open('./tmp.txt', 'w') as f:
+            f.write(str(tvm.lower(s, [Data, Filter, Out])))
         # print(f.imported_modules[0].get_source())
         # time.append(evaluator(a, b, out).mean * 1e3)
 
@@ -100,6 +102,6 @@ if __name__ == '__main__':
     _data_size = [16, 7, 7, 16] # nhwc
     _filter_size = [4, 4, 16, 16] # hwio
     _padding = [0, 0]
-    _stride = [1, 1]
+    _stride = [2, 2]
 
     topi_conv2d(_data_size, _filter_size, _padding, _stride)
