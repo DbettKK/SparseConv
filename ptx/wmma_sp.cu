@@ -7,6 +7,7 @@
 #include <string>
 #include <random>
 #include <mma.h>
+#include <driver_types.h>
 
 #include "wmma.sp.cuh"
 
@@ -119,6 +120,41 @@ __device__ void merge_out(half *out1, half *out2, half *out) {
     }
 }
 
+__global__ void compress_mat_multi(half *matA, half *matA_cmpr, uint32_t *metadata, uint32_t *final_meta) {
+    // task num: 32
+    // m16n16k16
+    // metadata[128]
+    int tid = threadIdx.x;
+    int row_num = tid / 2;
+    int col_num = tid % 2;
+    int flag[8] = {1, 1, 1, 1, 1, 1, 1, 1};
+    int init_index = 16 * row_num + 8 * col_num;
+    for (int i = 0; i < 8; i++) {
+        if (matA[i + init_index] == __float2half(0)) {
+            flag[i] = -1;
+        }
+    }
+    int cmpr_index = 8 * row_num + 4 * col_num;
+    int meta_index = cmpr_index;
+    int cnt = 0;
+    for (int i = 0; i < 8; i++) {
+        if (flag[i] > 0) {
+            matA_cmpr[cmpr_index + cnt] = matA[i + init_index];
+            metadata[meta_index + cnt] = i >= 4 ? i - 4 : i;
+            cnt++;
+        }
+    }
+    if (tid % 4 == 0) {
+        int final_meta_index = tid / 4 * 16;
+        int ans = 0, offset = 0;
+        for (int i = final_meta_index; i < final_meta_index + 16; i++) {
+            ans |= metadata[i] << offset;
+            offset += 2;
+        }
+        final_meta[tid / 4] = ans;
+    }
+}
+
 /**
  *
  * @param matA 16x16
@@ -133,7 +169,9 @@ __global__ void wmma_spmma_test(half *matA, half *matB, half *matC1, half *matC2
     half *out1 = new half[16 * 8];
     half *out2 = new half[16 * 8];
     uint32_t *meta = new uint32_t[8];
+    uint32_t *old_meta = new uint32_t[128];
     compress_mat(matA, matA_cmpr, meta);
+    //compress_mat_multi<<<1, 32>>>(matA, matA_cmpr, old_meta, meta);
     split_matB(matB, matB1, matB2);
     sparse_mma<<<1, 32>>>(out1, matA_cmpr, matB1, matC1, meta);
     sparse_mma<<<1, 32>>>(out2, matA_cmpr, matB2, matC2, meta);
@@ -147,7 +185,7 @@ __global__ void wmma_spmma_test(half *matA, half *matB, half *matC1, half *matC2
 }
 
 __global__ void wmma_example(half *a, half *b, half *c) {
-    // Declare the fragments
+    // Declare the fragments m,n,k
     wmma::fragment<wmma::matrix_a, 16, 16, 16, half, wmma::row_major> a_frag;
     wmma::fragment<wmma::matrix_b, 16, 16, 16, half, wmma::row_major> b_frag;
     wmma::fragment<wmma::accumulator, 16, 16, 16, half> acc_frag;
@@ -162,7 +200,7 @@ __global__ void wmma_example(half *a, half *b, half *c) {
     wmma::store_matrix_sync(c, acc_frag, 16, wmma::mem_row_major);
 }
 
-int main() {
+void ptx_161616() {
     // random
     std::random_device sd; // sd可以产生一个质量很高的随机数
     std::default_random_engine e(sd());
@@ -177,7 +215,7 @@ int main() {
         hA[i] = 0;
         hA[i + 1] = 1;
         hA[i + 2] = 0;
-        hA[i + 3] = 2;
+        hA[i + 3] = 3;
     }
     for (int i = 0; i < 16 * 16; i++) hB[i] = 1;
 
@@ -203,11 +241,16 @@ int main() {
     cudaMemcpy(dA, hA, sizeof(half) * 256, cudaMemcpyHostToDevice);
     cudaMemcpy(dB, hB, sizeof(half) * 256, cudaMemcpyHostToDevice);
 
-    CudaTime time;
-    time.initAndStart();
-    wmma_spmma_test<<<1, 1>>>(dA, dB, dC1, dC2, dOut);
-    float times = time.endAndGetTime();
-    printf("time: %fms\n", times);
+    for (int i = 0; i < 10; i++) {
+        cudaMemset(dC1, 0, sizeof(half) * 256);
+        cudaMemset(dC2, 0, sizeof(half) * 256);
+        cudaMemset(dOut, 0, sizeof(half) * 256);
+        CudaTime time;
+        time.initAndStart();
+        wmma_spmma_test<<<1, 1>>>(dA, dB, dC1, dC2, dOut);
+        float times = time.endAndGetTime();
+        printf("time: %fms\n", times);
+    }
 
     half *hOut = new half[16 * 16];
     cudaMemcpy(hOut, dOut, sizeof(half) * 256, cudaMemcpyDeviceToHost);
@@ -219,13 +262,11 @@ int main() {
         }
         printf("\n");
     }
-
-    return 0;
 }
 
-int main2() {
-    half *hA = new half[256];
-    half *hB = new half[256];
+void wmma_pure() {
+    half *hA = new half[16 * 16];
+    half *hB = new half[16 * 16];
 
     for (int i = 0; i < 16 * 16; i+=4) {
 //        int zero_0 = u(e);
@@ -245,11 +286,16 @@ int main2() {
     cudaMemcpy(dB, hB, sizeof(half) * 256, cudaMemcpyHostToDevice);
     cudaMemset(dC, 0, sizeof(half) * 256);
 
-    CudaTime time;
-    time.initAndStart();
-    wmma_example<<<1, 32>>>(dA, dB, dC);
-    float times = time.endAndGetTime();
-    printf("time: %fms\n", times);
+
+    for (int i = 0; i < 10; i++) {
+        cudaMemset(dC, 0, sizeof(half) * 256);
+        CudaTime time;
+        time.initAndStart();
+        wmma_example<<<46, 128>>>(dA, dB, dC);
+        float times = time.endAndGetTime();
+        printf("time: %fms\n", times);
+    }
+
 
     half *hC = new half[256];
     cudaMemcpy(hC, dC, sizeof(half) * 256, cudaMemcpyDeviceToHost);
@@ -260,6 +306,89 @@ int main2() {
         }
         printf("\n");
     }
+}
 
-    return 0;
+void ptx_pure() {
+    half *hA = new half[16 * 8];
+    half *hB = new half[16 * 8];
+    auto hMeta = new uint32_t[8];
+    for (int i = 0; i < 16 * 8; i++) hA[i] = 2;
+    for (int i = 0; i < 16 * 8; i++) hB[i] = 1;
+    for (int i = 0; i < 8; i++) hMeta[i] = 0b10001000100010001000100010001000;
+
+    half *dA, *dB, *dC, *dOut;
+    uint32_t *dMeta;
+    cudaMalloc(&dA, sizeof(half) * 128);
+    cudaMalloc(&dB, sizeof(half) * 128);
+    cudaMalloc(&dC, sizeof(half) * 128);
+    cudaMalloc(&dOut, sizeof(half) * 128);
+    cudaMalloc(&dMeta, sizeof(uint32_t) * 8);
+
+    cudaMemset(dC, 0, sizeof(half) * 128);
+    cudaMemset(dOut, 0, sizeof(half) * 128);
+
+    cudaMemcpy(dA, hA, sizeof(half) * 128, cudaMemcpyHostToDevice);
+    cudaMemcpy(dB, hB, sizeof(half) * 128, cudaMemcpyHostToDevice);
+    cudaMemcpy(dMeta, hMeta, sizeof(uint32_t) * 8, cudaMemcpyHostToDevice);
+
+    for (int i = 0; i < 10; i++) {
+        cudaMemset(dC, 0, sizeof(half) * 128);
+        cudaMemset(dOut, 0, sizeof(half) * 128);
+        CudaTime time;
+        time.initAndStart();
+        sparse_mma<<<46, 128>>>(dOut, dA, dB, dC, dMeta);
+        float times = time.endAndGetTime();
+        printf("time: %fms\n", times);
+    }
+
+    half *hOut = new half[16 * 8];
+    cudaMemcpy(hOut, dOut, sizeof(half) * 128, cudaMemcpyDeviceToHost);
+
+    // printf("\n");
+    for (int i = 0; i < 16; i++) {
+        for (int j = 0; j < 8; j++) {
+            printf("%d ", __half2int_rz(hOut[i * 8 + j]));
+        }
+        printf("\n");
+    }
+}
+
+void test_cmpr() {
+    auto gen = new DataGenerator();
+    half *hA = new half[16 * 16];
+    for (int i = 0; i < 16 * 16; i+=4) {
+//        int zero_0 = u(e);
+//        int zero_1 = u(e);
+        hA[i] = 0;
+        hA[i + 1] = 1;
+        hA[i + 2] = 0;
+        hA[i + 3] = 2;
+    }
+
+    half *dA, *dA_cmpr;
+    uint32_t *metadata, *final_meta;
+    cudaMalloc(&dA, sizeof(half) * 256);
+    cudaMalloc(&dA_cmpr, sizeof(half) * 128);
+    cudaMalloc(&metadata, sizeof(uint32_t) * 16 * 8);
+    cudaMalloc(&final_meta, sizeof(uint32_t) * 8);
+
+    cudaMemcpy(dA, hA, sizeof(half) * 256, cudaMemcpyHostToDevice);
+
+    compress_mat_multi<<<1, 32>>>(dA, dA_cmpr, metadata, final_meta);
+
+    half *hA_cmpr = new half[128];
+    uint32_t *hMetadata = new uint32_t[128];
+    cudaMemcpy(hA_cmpr, dA_cmpr, sizeof(half) * 128, cudaMemcpyDeviceToHost);
+    cudaMemcpy(hMetadata, metadata, sizeof(uint32_t) * 128, cudaMemcpyDeviceToHost);
+
+    gen->printMatrix(hA, 16, 16);
+    gen->printMatrix(hA_cmpr, 16, 8);
+
+    for (int i = 0; i < 16; i++) printf("%d ", hMetadata[i]);
+
+
+}
+
+int main() {
+    ptx_161616();
 }
