@@ -163,25 +163,25 @@ __global__ void compress_mat_multi(half *matA, half *matA_cmpr, uint32_t *metada
  * @param out 16x16
  */
 __global__ void wmma_spmma_test(half *matA, half *matB, half *matC1, half *matC2, half *out) {
-    half *matA_cmpr = new half[M * K / 2];
-    half *matB1 = new half[16 * 8];
-    half *matB2 = new half[16 * 8];
-    half *out1 = new half[16 * 8];
-    half *out2 = new half[16 * 8];
-    uint32_t *meta = new uint32_t[8];
-    uint32_t *old_meta = new uint32_t[128];
-    compress_mat(matA, matA_cmpr, meta);
-    //compress_mat_multi<<<1, 32>>>(matA, matA_cmpr, old_meta, meta);
-    split_matB(matB, matB1, matB2);
-    sparse_mma<<<1, 32>>>(out1, matA_cmpr, matB1, matC1, meta);
-    sparse_mma<<<1, 32>>>(out2, matA_cmpr, matB2, matC2, meta);
-
-    merge_out(out1, out2, out);
-
-    delete[] matB1;
-    delete[] matB2;
-    delete[] out1;
-    delete[] out2;
+//    half *matA_cmpr = new half[M * K / 2];
+//    half *matB1 = new half[16 * 8];
+//    half *matB2 = new half[16 * 8];
+//    half *out1 = new half[16 * 8];
+//    half *out2 = new half[16 * 8];
+//    uint32_t *meta = new uint32_t[8];
+//    uint32_t *old_meta = new uint32_t[128];
+//    //compress_mat(matA, matA_cmpr, meta);
+//    //compress_mat_multi<<<1, 32>>>(matA, matA_cmpr, old_meta, meta);
+//    //split_matB(matB, matB1, matB2);
+//    //sparse_mma<<<1, 32>>>(out1, matA_cmpr, matB1, matC1, meta);
+//    //sparse_mma<<<1, 32>>>(out2, matA_cmpr, matB2, matC2, meta);
+//
+//    //merge_out(out1, out2, out);
+//
+//    delete[] matB1;
+//    delete[] matB2;
+//    delete[] out1;
+//    delete[] out2;
 }
 
 __global__ void wmma_example(half *a, half *b, half *c) {
@@ -249,7 +249,7 @@ void ptx_161616() {
         time.initAndStart();
         wmma_spmma_test<<<1, 1>>>(dA, dB, dC1, dC2, dOut);
         float times = time.endAndGetTime();
-        printf("time: %fms\n", times);
+        printf("%f\n", times);
     }
 
     half *hOut = new half[16 * 16];
@@ -390,5 +390,6 @@ void test_cmpr() {
 }
 
 int main() {
+
     ptx_161616();
 }
