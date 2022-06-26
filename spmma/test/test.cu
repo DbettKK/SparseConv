@@ -55,16 +55,16 @@ void benchmark_matmul(int m, int k, int n) {
 }
 
 void test_conv() {
-    int data_n = 4, data_c = 3, data_h = 16, data_w = 16;
-    int kernel_n = 4, kernel_c = 3, kernel_h = 3, kernel_w = 3;
+    int data_n = 16, data_c = 256, data_h = 64, data_w = 64;
+    int kernel_n = 512, kernel_c = 256, kernel_h = 3, kernel_w = 3;
     auto data = new Tensor4d(data_n, data_c, data_h, data_w);
     auto kernel = new Tensor4d(kernel_n, kernel_c, kernel_h, kernel_w);
-//    data->generateRandData(8);
-//    kernel->generateRandSpData(8);
-    data->readFromBin("../data/data.bin");
-    kernel->readFromBin("../data/kernel.bin");
+    data->generateRandData(8);
+    kernel->generateRandSpData(8);
+    //data->readFromBin("../data/data.bin");
+    //kernel->readFromBin("../data/kernel.bin");
     //data->printTensor("data:");
-    auto param = new ConvParam(data, kernel, 0, 1, 1);
+    auto param = new ConvParam(data, kernel, 0, 2, 1);
     // test1 cpu占用会很高
     if (!param->checkIm2col()) {
         printf("im2col error\n");
@@ -119,7 +119,9 @@ void benchmark_conv(int data_n, int data_c, int data_h, int data_w, int kernel_n
 //    for(int i = 0; i < 20; i++) benchmark_conv(data_n, data_c, data_h, data_w, kernel_n, kernel_c, kernel_h, kernel_w);
 //
 //}
-
+int main() {
+    for (int i = 0; i < 2; i++) test_conv();
+}
 //int main() {
     // benchmark matmul
 //    std::random_device sd; // sd可以产生一个质量很高的随机数

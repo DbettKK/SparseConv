@@ -113,7 +113,7 @@ int main1(int argc, char **argv) {
     return 0;
 }
 
-int main() {
+int main7() {
     half *hA = new half[32 * 16];
     half *hB = new half[16 * 8];
     auto *hMeta = new uint32_t[8 * 4];
@@ -156,4 +156,5 @@ int main() {
         }
         printf("\n");
     }
+    return 0;
 }
