@@ -16,5 +16,16 @@
 #include "utils/DataGenerator.cuh"
 
 using namespace nvcuda;
+using namespace std;
+
+#define CHECK_CUDA_ERROR(func)                                                       \
+{                                                                              \
+    cudaError_t status = (func);                                               \
+    if (status != cudaSuccess) {                                               \
+        printf("CUDA API failed at %s line %d with error: %s (%d)\n",          \
+               __FILE__, __LINE__, cudaGetErrorString(status), status);              \
+        return;                                                                             \
+    }                                                                          \
+}
 
 #endif //SPARSECONV_WMMA_SP_CUH

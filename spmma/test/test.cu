@@ -119,9 +119,9 @@ void benchmark_conv(int data_n, int data_c, int data_h, int data_w, int kernel_n
 //    for(int i = 0; i < 20; i++) benchmark_conv(data_n, data_c, data_h, data_w, kernel_n, kernel_c, kernel_h, kernel_w);
 //
 //}
-int main() {
-    for (int i = 0; i < 2; i++) test_conv();
-}
+//int main() {
+//    for (int i = 0; i < 2; i++) test_conv();
+//}
 //int main() {
     // benchmark matmul
 //    std::random_device sd; // sd可以产生一个质量很高的随机数

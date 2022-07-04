@@ -119,13 +119,18 @@ def get_data():
     filters = []
     paddings = []
     strides = []
+    outs = []
     for d in data:
         datas.append([d[0], d[2], d[3], d[1]])
         filters.append([d[6], d[7], d[5], d[4]])
         paddings.append(d[8])
         strides.append(d[9])
+        out_hw = (d[2] + 2 * d[8] - d[6]) // d[9] + 1
+        outs.append([d[0], d[4], out_hw, out_hw])  # batch out_c out_h out_w
     # print(datas, filters, paddings, strides)
-    return datas, filters, paddings, strides
+    print("data:", datas)
+    print("filter:", filters)
+    return datas, filters, paddings, strides, outs
 
 
 if __name__ == '__main__':
@@ -137,7 +142,7 @@ if __name__ == '__main__':
     # topi: 0.005306 ms
     # spmma:
 
-    datas, filters, paddings, strides = get_data()
+    datas, filters, paddings, strides, outs = get_data()
 
     for i in range(len(datas)):
         topi_conv2d(datas[i], filters[i], paddings[i], strides[i])

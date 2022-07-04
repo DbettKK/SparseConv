@@ -24,7 +24,11 @@ void test_conv(int d_n, int d_c, int d_h, int d_w, int f_n, int f_c, int f_h, in
     auto filter = new Tensor4d(f_n, f_c, f_h, f_w);
     filter->readFromBin(f_path);
     auto param = new ConvParam(data, filter, padding, stride, 1);
+    CudaTime *t = new CudaTime();
+    t->initAndStart();
     auto ret = sparse_conv(param);
+    float tt = t->endAndGetTime();
+    printf("tt: %f\n", tt);
     //printf("n:%d, c:%d, h: %d, w:%d\n", ret->getN(), ret->getC(), ret->getH(), ret->getW());
     delete data;
     delete filter;
@@ -78,24 +82,24 @@ void test_vgg16() {
 }
 
 void test_resnet18() {
-    std::string pre_path = "../data/resnet";
-    test_conv(1, 3, 224, 224, 64, 3, 7, 7, 3, 2, pre_path + "/data1.bin", pre_path + "/filter1.bin");
-    test_conv(1, 64, 56, 56, 64, 64, 3, 3, 1, 1, pre_path + "/data2.bin", pre_path + "/filter2.bin");
-    test_conv(1, 64, 56, 56, 64, 64, 3, 3, 1, 1, pre_path + "/data3.bin", pre_path + "/filter3.bin");
-    test_conv(1, 64, 56, 56, 64, 64, 3, 3, 1, 1, pre_path + "/data4.bin", pre_path + "/filter4.bin");
-    test_conv(1, 64, 56, 56, 64, 64, 3, 3, 1, 1, pre_path + "/data5.bin", pre_path + "/filter5.bin");
-    test_conv(1, 64, 56, 56, 128, 64, 3, 3, 1, 2, pre_path + "/data6.bin", pre_path + "/filter6.bin");
-    test_conv(1, 128, 28, 28, 128, 128, 3, 3, 1, 1, pre_path + "/data7.bin", pre_path + "/filter7.bin");
-    test_conv(1, 128, 28, 28, 128, 128, 3, 3, 1, 1, pre_path + "/data8.bin", pre_path + "/filter8.bin");
-    test_conv(1, 128, 28, 28, 128, 128, 3, 3, 1, 1, pre_path + "/data9.bin", pre_path + "/filter9.bin");
-    test_conv(1, 128, 28, 28, 256, 128, 3, 3, 1, 2, pre_path + "/data10.bin", pre_path + "/filter10.bin");
-    test_conv(1, 256, 14, 14, 256, 256, 3, 3, 1, 1, pre_path + "/data11.bin", pre_path + "/filter11.bin");
-    test_conv(1, 256, 14, 14, 256, 256, 3, 3, 1, 1, pre_path + "/data12.bin", pre_path + "/filter12.bin");
-    test_conv(1, 256, 14, 14, 256, 256, 3, 3, 1, 1, pre_path + "/data13.bin", pre_path + "/filter13.bin");
-    test_conv(1, 256, 14, 14, 512, 256, 3, 3, 1, 2, pre_path + "/data14.bin", pre_path + "/filter14.bin");
-    test_conv(1, 512, 7, 7, 512, 512, 3, 3, 1, 1, pre_path + "/data15.bin", pre_path + "/filter15.bin");
-    test_conv(1, 512, 7, 7, 512, 512, 3, 3, 1, 1, pre_path + "/data16.bin", pre_path + "/filter16.bin");
-    test_conv(1, 512, 7, 7, 512, 512, 3, 3, 1, 1, pre_path + "/data17.bin", pre_path + "/filter17.bin");
+    std::string pre_path = "../../data/resnet";
+    test_conv(16, 3, 224, 224, 64, 3, 7, 7, 3, 2, pre_path + "/data1.bin", pre_path + "/filter1.bin");
+    test_conv(16, 64, 56, 56, 64, 64, 3, 3, 1, 1, pre_path + "/data2.bin", pre_path + "/filter2.bin");
+    test_conv(16, 64, 56, 56, 64, 64, 3, 3, 1, 1, pre_path + "/data3.bin", pre_path + "/filter3.bin");
+    test_conv(16, 64, 56, 56, 64, 64, 3, 3, 1, 1, pre_path + "/data4.bin", pre_path + "/filter4.bin");
+    test_conv(16, 64, 56, 56, 64, 64, 3, 3, 1, 1, pre_path + "/data5.bin", pre_path + "/filter5.bin");
+    test_conv(16, 64, 56, 56, 128, 64, 3, 3, 1, 2, pre_path + "/data6.bin", pre_path + "/filter6.bin");
+    test_conv(16, 128, 28, 28, 128, 128, 3, 3, 1, 1, pre_path + "/data7.bin", pre_path + "/filter7.bin");
+    test_conv(16, 128, 28, 28, 128, 128, 3, 3, 1, 1, pre_path + "/data8.bin", pre_path + "/filter8.bin");
+    test_conv(16, 128, 28, 28, 128, 128, 3, 3, 1, 1, pre_path + "/data9.bin", pre_path + "/filter9.bin");
+    test_conv(16, 128, 28, 28, 256, 128, 3, 3, 1, 2, pre_path + "/data10.bin", pre_path + "/filter10.bin");
+    test_conv(16, 256, 14, 14, 256, 256, 3, 3, 1, 1, pre_path + "/data11.bin", pre_path + "/filter11.bin");
+    test_conv(16, 256, 14, 14, 256, 256, 3, 3, 1, 1, pre_path + "/data12.bin", pre_path + "/filter12.bin");
+    test_conv(16, 256, 14, 14, 256, 256, 3, 3, 1, 1, pre_path + "/data13.bin", pre_path + "/filter13.bin");
+    test_conv(16, 256, 14, 14, 512, 256, 3, 3, 1, 2, pre_path + "/data14.bin", pre_path + "/filter14.bin");
+    test_conv(16, 512, 7, 7, 512, 512, 3, 3, 1, 1, pre_path + "/data15.bin", pre_path + "/filter15.bin");
+    test_conv(16, 512, 7, 7, 512, 512, 3, 3, 1, 1, pre_path + "/data16.bin", pre_path + "/filter16.bin");
+    test_conv(16, 512, 7, 7, 512, 512, 3, 3, 1, 1, pre_path + "/data17.bin", pre_path + "/filter17.bin");
 }
 
 void test_alexnet() {
@@ -211,8 +215,8 @@ void test_sparse() {
 }
 
 
-//int main() {
-//    test_vgg16();
-//
-//    // todo: time
-//}
+int main() {
+    test_resnet18();
+
+    // todo: time
+}
