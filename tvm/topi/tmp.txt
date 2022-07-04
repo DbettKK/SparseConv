@@ -318,13 +318,13 @@ extern "C" __global__ void __launch_bounds__(32) default_function_kernel0(half* 
   (void)nvcuda::wmma::fill_fragment(Conv2dOutput_wmma_accumulator[0], 0.000000e+00f);
   for (int ry = 0; ry < 3; ++ry) {
     for (int rx = 0; rx < 3; ++rx) {
-      for (int rc_outer_outer = 0; rc_outer_outer < 16; ++rc_outer_outer) {
+      for (int rc_outer_outer = 0; rc_outer_outer < 32; ++rc_outer_outer) {
         __syncthreads();
         for (int ax0_ax3_fused_outer_outer_outer_outer = 0; ax0_ax3_fused_outer_outer_outer_outer < 8; ++ax0_ax3_fused_outer_outer_outer_outer) {
-          compute_shared[(((ax0_ax3_fused_outer_outer_outer_outer * 32) + ((int)threadIdx.x)))] = Data[(((((((((ax0_ax3_fused_outer_outer_outer_outer * 2097152) + ((((int)threadIdx.x) >> 4) * 1048576)) + ((((int)blockIdx.z) / 31) * 32768)) + (ry * 16384)) + ((((int)blockIdx.z) % 31) * 512)) + (rx * 256)) + (rc_outer_outer * 16)) + (((int)threadIdx.x) & 15)))];
+          compute_shared[(((ax0_ax3_fused_outer_outer_outer_outer * 32) + ((int)threadIdx.x)))] = (((((1 <= ((((int)blockIdx.z) / 7) + ry)) && (((((int)blockIdx.z) / 7) + ry) < 8)) && (1 <= (rx + (((int)blockIdx.z) % 7)))) && ((rx + (((int)blockIdx.z) % 7)) < 8)) ? Data[(((((((((ax0_ax3_fused_outer_outer_outer_outer * 50176) + ((((int)threadIdx.x) >> 4) * 25088)) + (ry * 3584)) + (((int)blockIdx.z) * 512)) + (rx * 512)) + (rc_outer_outer * 16)) + (((int)threadIdx.x) & 15)) - 4096))] : __float2half_rn(0.000000e+00f));
         }
         for (int ax2_ax3_fused_outer_outer_outer_outer = 0; ax2_ax3_fused_outer_outer_outer_outer < 8; ++ax2_ax3_fused_outer_outer_outer_outer) {
-          compute_d_shared[(((ax2_ax3_fused_outer_outer_outer_outer * 32) + ((int)threadIdx.x)))] = Filter[((((((((ry * 393216) + (rx * 131072)) + (rc_outer_outer * 8192)) + (ax2_ax3_fused_outer_outer_outer_outer * 1024)) + ((((int)threadIdx.x) >> 4) * 512)) + (((int)blockIdx.y) * 16)) + (((int)threadIdx.x) & 15)))];
+          compute_d_shared[(((ax2_ax3_fused_outer_outer_outer_outer * 32) + ((int)threadIdx.x)))] = Filter[((((((((ry * 786432) + (rx * 262144)) + (rc_outer_outer * 8192)) + (ax2_ax3_fused_outer_outer_outer_outer * 1024)) + ((((int)threadIdx.x) >> 4) * 512)) + (((int)blockIdx.y) * 16)) + (((int)threadIdx.x) & 15)))];
         }
         __syncthreads();
         (void)nvcuda::wmma::load_matrix_sync(compute_shared_wmma_matrix_a[0], ((half *)compute_shared + (0)), 16);
@@ -337,7 +337,9 @@ extern "C" __global__ void __launch_bounds__(32) default_function_kernel0(half* 
   (void)nvcuda::wmma::store_matrix_sync(((half *)compute_shared + (0)), Conv2dOutput_wmma_accumulator[0], 16, nvcuda::wmma::mem_row_major);
   __syncthreads();
   for (int nn_inner_ff_inner_fused_outer_outer_outer_outer = 0; nn_inner_ff_inner_fused_outer_outer_outer_outer < 8; ++nn_inner_ff_inner_fused_outer_outer_outer_outer) {
-    Conv2dOutput[((((((nn_inner_ff_inner_fused_outer_outer_outer_outer * 984064) + ((((int)threadIdx.x) >> 4) * 492032)) + (((int)blockIdx.z) * 512)) + (((int)blockIdx.y) * 16)) + (((int)threadIdx.x) & 15)))] = compute_shared[(((nn_inner_ff_inner_fused_outer_outer_outer_outer * 32) + ((int)threadIdx.x)))];
+    Conv2dOutput[((((((nn_inner_ff_inner_fused_outer_outer_outer_outer * 50176) + ((((int)threadIdx.x) >> 4) * 25088)) + (((int)blockIdx.z) * 512)) + (((int)blockIdx.y) * 16)) + (((int)threadIdx.x) & 15)))] = compute_shared[(((nn_inner_ff_inner_fused_outer_outer_outer_outer * 32) + ((int)threadIdx.x)))];
   }
 }
 
+
+=========================================
