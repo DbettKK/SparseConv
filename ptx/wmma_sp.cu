@@ -1,17 +1,7 @@
 //
 // Created by dbettkk on 2022/6/10.
 //
-#include <cuda_fp16.h>
-#include <fstream>
-#include <iostream>
-#include <string>
-#include <random>
-#include <mma.h>
-#include <driver_types.h>
-
 #include "wmma.sp.cuh"
-
-using namespace nvcuda;
 
 static const int M = 16;
 static const int N = 8;

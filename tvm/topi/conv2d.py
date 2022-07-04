@@ -88,6 +88,9 @@ def topi_conv2d(data_size: list, filter_size: list, padding, stride):
         with open('./tmp.txt', 'a') as fi:
             fi.write(str(f.imported_modules[0].get_source()))
             fi.write("\n=========================================\n")
+        with open('./tmp2.txt', 'a') as fi:
+            fi.write(str(tvm.lower(s, [Data, Filter, Out])))
+            fi.write("\n=========================================\n")
         # print(f.imported_modules[0].get_source())
         # print(evaluator(a, b, out).mean * 1e3)
 
