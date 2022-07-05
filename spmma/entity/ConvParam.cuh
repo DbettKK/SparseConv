@@ -10,6 +10,7 @@
 #include "Tensor4d.cuh"
 #include "MatrixParam.cuh"
 #include "../kernels/kernels.cuh"
+#include "../utils/CudaTime.cuh"
 
 class ConvParam {
     Tensor4d *data, *kernel;

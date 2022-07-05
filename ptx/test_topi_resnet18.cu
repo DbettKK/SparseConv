@@ -550,7 +550,7 @@ void test_conv(int data_size, int filter_size, int out_size, string d_p, string 
     }
 
     float t = time->endAndGetTime();
-    printf("%f\n", t);
+    printf("%f\t", t);
 
     CHECK_CUDA_ERROR(cudaMemcpy(hOut, dOut, sizeof(half) * out_size, cudaMemcpyDeviceToHost));
     // do sth
@@ -562,7 +562,7 @@ void test_conv(int data_size, int filter_size, int out_size, string d_p, string 
     delete[] hOut;
 
     float all_t = time_all->endAndGetTime();
-    printf("all: %fms\n", all_t);
+    printf("%f\n", all_t);
 }
 
 void test_resnet() {

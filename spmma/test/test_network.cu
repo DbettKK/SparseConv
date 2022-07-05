@@ -18,21 +18,21 @@ half *read_bin(int size, const std::string& path) {
 void test_conv(int d_n, int d_c, int d_h, int d_w, int f_n, int f_c, int f_h, int f_w, int padding, int stride,
                const std::string &d_path,
                const std::string &f_path) {
+    CudaTime *t = new CudaTime();
+    t->initAndStart();
     // conv
     auto data = new Tensor4d(d_n, d_c, d_h, d_w);
     data->readFromBin(d_path);
     auto filter = new Tensor4d(f_n, f_c, f_h, f_w);
     filter->readFromBin(f_path);
     auto param = new ConvParam(data, filter, padding, stride, 1);
-    CudaTime *t = new CudaTime();
-    t->initAndStart();
     auto ret = sparse_conv(param);
     float tt = t->endAndGetTime();
-    printf("tt: %f\n", tt);
     //printf("n:%d, c:%d, h: %d, w:%d\n", ret->getN(), ret->getC(), ret->getH(), ret->getW());
     delete data;
     delete filter;
     delete ret;
+    printf("%f\n", tt);
 }
 
 void test_matmul_conv(int d_n, int d_c, int d_h, int d_w, int f_n, int f_c, int f_h, int f_w, int padding, int stride,

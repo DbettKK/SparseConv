@@ -193,13 +193,15 @@ void ConvParam::im2colGPU(half *kernel_out, half *im2col_out) {
 
     CHECK_CUDA( cudaMemcpy(d_data, data->getTensor(), data->getTotalSize() * sizeof(half), cudaMemcpyHostToDevice) )
     CHECK_CUDA( cudaMemcpy(kernel_out, kernel->getTensor(), kernel->getTotalSize() * sizeof(half), cudaMemcpyHostToDevice) )
-
+    auto time1 = new CudaTime();
+    time1->initAndStart();
     im2col_gpu<half>(d_data, data->getN(), data->getC(), data->getH(), data->getW(),
                      kernel->getH(), kernel->getW(),
                      padding, padding,
                      stride, stride,
                      dilation, dilation, im2col_out);
-
+    float im2colTime = time1->endAndGetTime();
+    printf("%f\t", im2colTime);
     CHECK_CUDA(cudaFree(d_data))
 }
 
@@ -209,8 +211,14 @@ Tensor4d *ConvParam::col2imGPU(half *col) {
 
     int num_kernels = getM();
 
+    auto time2 = new CudaTime();
+    time2->initAndStart();
+
     im2col_rev_kernel<<<GET_BLOCKS(num_kernels), CUDA_NUM_THREADS>>>(
             num_kernels, col, data->getN(), kernel->getN(), getOutHeight(), getOutWidth(), d_im);
+
+    float col2imTime = time2->endAndGetTime();
+    printf("%f\t", col2imTime);
 
     half *im = new half[getM() * getN()];
     CUDA_CHECK( cudaMemcpy(im, d_im, getM() * getN() * sizeof(half), cudaMemcpyDeviceToHost) )
