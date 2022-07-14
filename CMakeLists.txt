@@ -6,6 +6,7 @@ set(CMAKE_CUDA_STANDARD 17)
 add_subdirectory(spmma)
 add_subdirectory(ptx)
 add_subdirectory(cpp)
+add_subdirectory(nlp)
 
 set_target_properties(SparseConv PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON)

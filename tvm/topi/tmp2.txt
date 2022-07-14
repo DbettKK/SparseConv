@@ -1,189 +1,89 @@
+0.181248,0.136192,0.078848,39.882687
+0.113888,0.082944,0.033792,8.548256
+0.109408,0.081920,0.034816,5.565600
+0.110912,0.082944,0.032768,6.124896
+0.116896,0.080896,0.032768,6.152096
+0.055424,0.030720,0.053248,5.241568
+0.064992,0.046080,0.053248,3.618880
+0.062720,0.046080,0.053248,3.686336
+0.063104,0.046080,0.054272,3.688544
+0.046816,0.025600,0.093184,3.297376
+0.049600,0.035840,0.094208,3.224064
+0.045376,0.035840,0.092160,3.260576
+0.046688,0.035840,0.092160,3.282656
+0.054688,0.034816,0.162816,3.405568
+0.045888,0.050176,0.167936,3.944416
+0.048384,0.050176,0.163840,3.776064
+0.045856,0.050176,0.164864,3.849184
 
-@main = primfn(Data_1: handle, Filter_1: handle, Conv2dOutput_1: handle) -> ()
-  attr = {"from_legacy_te_schedule": True, "global_symbol": "main", "tir.noalias": True}
-  buffers = {Conv2dOutput: Buffer(Conv2dOutput_2: Pointer(float16), float16, [16, 7, 7, 512], []),
-             Filter: Buffer(Filter_2: Pointer(float16), float16, [3, 3, 256, 512], []),
-             Data: Buffer(Data_2: Pointer(float16), float16, [16, 14, 14, 256], [])}
-  buffer_map = {Data_1: Data, Filter_1: Filter, Conv2dOutput_1: Conv2dOutput} {
-  attr [IterVar(blockIdx.z: int32, (nullptr), "ThreadIndex", "blockIdx.z")] "thread_extent" = 49;
-  allocate(Conv2dOutput.wmma.accumulator: Pointer(wmma.accumulator float16), float16, [256]), storage_scope = wmma.accumulator;
-  allocate(compute.shared: Pointer(shared float16), float16, [256]), storage_scope = shared;
-  allocate(compute.d.shared: Pointer(shared float16), float16, [256]), storage_scope = shared;
-  allocate(compute.shared.wmma.matrix_a: Pointer(wmma.matrix_a float16), float16, [256]), storage_scope = wmma.matrix_a;
-  allocate(compute.d.shared.wmma.matrix_b: Pointer(wmma.matrix_b float16), float16, [256]), storage_scope = wmma.matrix_b;
-  attr [IterVar(blockIdx.x: int32, (nullptr), "ThreadIndex", "blockIdx.x")] "thread_extent" = 1;
-  attr [IterVar(blockIdx.y: int32, (nullptr), "ThreadIndex", "blockIdx.y")] "thread_extent" = 32 {
-    attr [IterVar(threadIdx.y: int32, (nullptr), "ThreadIndex", "threadIdx.y")] "thread_extent" = 1;
-    attr [IterVar(threadIdx.z: int32, (nullptr), "ThreadIndex", "threadIdx.z")] "thread_extent" = 1 {
-      @tir.tvm_fill_fragment(Conv2dOutput.wmma.accumulator, 16, 16, 16, 0, 0f32, dtype=handle)
-      for (ry: int32, 0, 3) {
-        for (rx: int32, 0, 3) {
-          for (rc.outer.outer: int32, 0, 16) {
-            for (ax0.ax3.fused.outer.outer.outer.outer: int32, 0, 8) {
-              attr [IterVar(threadIdx.x: int32, (nullptr), "ThreadIndex", "threadIdx.x")] "thread_extent" = 32;
-              compute.shared[((ax0.ax3.fused.outer.outer.outer.outer*32) + threadIdx.x)] = @tir.if_then_else(((1 <= ((floordiv(blockIdx.z, 7)*2) + ry)) && (1 <= ((floormod(blockIdx.z, 7)*2) + rx))), (float16*)Data_2[(((((((((ax0.ax3.fused.outer.outer.outer.outer*100352) + (floordiv(threadIdx.x, 16)*50176)) + (floordiv(blockIdx.z, 7)*7168)) + (ry*3584)) + (floormod(blockIdx.z, 7)*512)) + (rx*256)) + (rc.outer.outer*16)) + floormod(threadIdx.x, 16)) - 3840)], 0f16, dtype=float16)
-            }
-            for (ax2.ax3.fused.outer.outer.outer.outer: int32, 0, 8) {
-              attr [IterVar(threadIdx.x, (nullptr), "ThreadIndex", "threadIdx.x")] "thread_extent" = 32;
-              compute.d.shared[((ax2.ax3.fused.outer.outer.outer.outer*32) + threadIdx.x)] = (float16*)Filter_2[(((((((ry*393216) + (rx*131072)) + (rc.outer.outer*8192)) + (ax2.ax3.fused.outer.outer.outer.outer*1024)) + (floordiv(threadIdx.x, 16)*512)) + (blockIdx.y*16)) + floormod(threadIdx.x, 16))]
-            }
-            @tir.tvm_load_matrix_sync(compute.shared.wmma.matrix_a, 16, 16, 16, 0, @tir.tvm_access_ptr(@tir.type_annotation(, dtype=float16), compute.shared, 0, 256, 1, dtype=handle), 16, "row_major", dtype=handle)
-            @tir.tvm_load_matrix_sync(compute.d.shared.wmma.matrix_b, 16, 16, 16, 0, @tir.tvm_access_ptr(@tir.type_annotation(, dtype=float16), compute.d.shared, 0, 256, 1, dtype=handle), 16, "row_major", dtype=handle)
-            @tir.tvm_mma_sync(Conv2dOutput.wmma.accumulator, 0, compute.shared.wmma.matrix_a, 0, compute.d.shared.wmma.matrix_b, 0, Conv2dOutput.wmma.accumulator, 0, dtype=handle)
-          }
-        }
-      }
-      @tir.tvm_store_matrix_sync(Conv2dOutput.wmma.accumulator, 16, 16, 16, 0, @tir.tvm_access_ptr(@tir.type_annotation(, dtype=float16), compute.shared, 0, 256, 2, dtype=handle), 16, "row_major", dtype=handle)
-    }
-    for (nn.inner.ff.inner.fused.outer.outer.outer.outer: int32, 0, 8) {
-      attr [IterVar(threadIdx.z, (nullptr), "ThreadIndex", "threadIdx.z")] "thread_extent" = 1;
-      attr [IterVar(threadIdx.y, (nullptr), "ThreadIndex", "threadIdx.y")] "thread_extent" = 1;
-      attr [IterVar(threadIdx.x, (nullptr), "ThreadIndex", "threadIdx.x")] "thread_extent" = 32;
-      Conv2dOutput_2[(((((nn.inner.ff.inner.fused.outer.outer.outer.outer*50176) + (floordiv(threadIdx.x, 16)*25088)) + (blockIdx.z*512)) + (blockIdx.y*16)) + floormod(threadIdx.x, 16))] = (float16*)compute.shared[((nn.inner.ff.inner.fused.outer.outer.outer.outer*32) + threadIdx.x)]
-    }
-  }
-}
+0.181248,0.135168,0.077824,40.006657
+0.112608,0.082944,0.035840,8.491008
+0.109632,0.080896,0.033792,5.883552
+0.109632,0.081920,0.033792,6.133920
+0.110176,0.081920,0.032768,6.231424
+0.055104,0.029696,0.055296,5.285792
+0.062816,0.047104,0.055296,3.704000
+0.064576,0.046080,0.054272,3.697312
+0.063360,0.047104,0.053248,3.680960
+0.048128,0.026624,0.094208,3.644192
+0.048928,0.034816,0.094208,3.217408
+0.045024,0.034816,0.092160,3.267936
+0.047424,0.035840,0.092160,3.386304
+0.055232,0.034816,0.164864,3.527808
+0.046528,0.050176,0.163840,3.976832
+0.045536,0.051200,0.163840,4.041760
+0.047328,0.050176,0.166912,3.864416
 
+0.184320,0.136192,0.078848,39.919327
+0.115904,0.084992,0.034816,8.452832
+0.109376,0.080896,0.033792,5.413344
+0.110720,0.082944,0.032768,6.164512
+0.117536,0.081920,0.032768,6.114208
+0.055200,0.029696,0.054272,5.246592
+0.062336,0.047104,0.052224,3.582976
+0.064416,0.046080,0.054272,3.578368
+0.064064,0.047104,0.053248,3.648800
+0.054656,0.026624,0.093184,3.328064
+0.049120,0.035840,0.093184,3.410336
+0.051456,0.035840,0.092160,3.215264
+0.046624,0.035840,0.091136,3.224832
+0.050784,0.034816,0.165888,3.339936
+0.044992,0.050176,0.163840,3.818592
+0.048864,0.050176,0.163840,3.807392
+0.044576,0.050176,0.162816,3.753088
 
-=========================================
-@main = primfn(Data_1: handle, Filter_1: handle, Conv2dOutput_1: handle) -> ()
-  attr = {"from_legacy_te_schedule": True, "global_symbol": "main", "tir.noalias": True}
-  buffers = {Conv2dOutput: Buffer(Conv2dOutput_2: Pointer(float16), float16, [16, 7, 7, 512], []),
-             Filter: Buffer(Filter_2: Pointer(float16), float16, [3, 3, 512, 512], []),
-             Data: Buffer(Data_2: Pointer(float16), float16, [16, 7, 7, 512], [])}
-  buffer_map = {Data_1: Data, Filter_1: Filter, Conv2dOutput_1: Conv2dOutput} {
-  attr [IterVar(blockIdx.z: int32, (nullptr), "ThreadIndex", "blockIdx.z")] "thread_extent" = 49;
-  allocate(Conv2dOutput.wmma.accumulator: Pointer(wmma.accumulator float16), float16, [256]), storage_scope = wmma.accumulator;
-  allocate(compute.shared: Pointer(shared float16), float16, [256]), storage_scope = shared;
-  allocate(compute.d.shared: Pointer(shared float16), float16, [256]), storage_scope = shared;
-  allocate(compute.shared.wmma.matrix_a: Pointer(wmma.matrix_a float16), float16, [256]), storage_scope = wmma.matrix_a;
-  allocate(compute.d.shared.wmma.matrix_b: Pointer(wmma.matrix_b float16), float16, [256]), storage_scope = wmma.matrix_b;
-  attr [IterVar(blockIdx.x: int32, (nullptr), "ThreadIndex", "blockIdx.x")] "thread_extent" = 1;
-  attr [IterVar(blockIdx.y: int32, (nullptr), "ThreadIndex", "blockIdx.y")] "thread_extent" = 32 {
-    attr [IterVar(threadIdx.y: int32, (nullptr), "ThreadIndex", "threadIdx.y")] "thread_extent" = 1;
-    attr [IterVar(threadIdx.z: int32, (nullptr), "ThreadIndex", "threadIdx.z")] "thread_extent" = 1 {
-      @tir.tvm_fill_fragment(Conv2dOutput.wmma.accumulator, 16, 16, 16, 0, 0f32, dtype=handle)
-      for (ry: int32, 0, 3) {
-        for (rx: int32, 0, 3) {
-          for (rc.outer.outer: int32, 0, 32) {
-            for (ax0.ax3.fused.outer.outer.outer.outer: int32, 0, 8) {
-              attr [IterVar(threadIdx.x: int32, (nullptr), "ThreadIndex", "threadIdx.x")] "thread_extent" = 32;
-              compute.shared[((ax0.ax3.fused.outer.outer.outer.outer*32) + threadIdx.x)] = @tir.if_then_else(((((1 <= (floordiv(blockIdx.z, 7) + ry)) && ((floordiv(blockIdx.z, 7) + ry) < 8)) && (1 <= (rx + floormod(blockIdx.z, 7)))) && ((rx + floormod(blockIdx.z, 7)) < 8)), (float16*)Data_2[((((((((ax0.ax3.fused.outer.outer.outer.outer*50176) + (floordiv(threadIdx.x, 16)*25088)) + (ry*3584)) + (blockIdx.z*512)) + (rx*512)) + (rc.outer.outer*16)) + floormod(threadIdx.x, 16)) - 4096)], 0f16, dtype=float16)
-            }
-            for (ax2.ax3.fused.outer.outer.outer.outer: int32, 0, 8) {
-              attr [IterVar(threadIdx.x, (nullptr), "ThreadIndex", "threadIdx.x")] "thread_extent" = 32;
-              compute.d.shared[((ax2.ax3.fused.outer.outer.outer.outer*32) + threadIdx.x)] = (float16*)Filter_2[(((((((ry*786432) + (rx*262144)) + (rc.outer.outer*8192)) + (ax2.ax3.fused.outer.outer.outer.outer*1024)) + (floordiv(threadIdx.x, 16)*512)) + (blockIdx.y*16)) + floormod(threadIdx.x, 16))]
-            }
-            @tir.tvm_load_matrix_sync(compute.shared.wmma.matrix_a, 16, 16, 16, 0, @tir.tvm_access_ptr(@tir.type_annotation(, dtype=float16), compute.shared, 0, 256, 1, dtype=handle), 16, "row_major", dtype=handle)
-            @tir.tvm_load_matrix_sync(compute.d.shared.wmma.matrix_b, 16, 16, 16, 0, @tir.tvm_access_ptr(@tir.type_annotation(, dtype=float16), compute.d.shared, 0, 256, 1, dtype=handle), 16, "row_major", dtype=handle)
-            @tir.tvm_mma_sync(Conv2dOutput.wmma.accumulator, 0, compute.shared.wmma.matrix_a, 0, compute.d.shared.wmma.matrix_b, 0, Conv2dOutput.wmma.accumulator, 0, dtype=handle)
-          }
-        }
-      }
-      @tir.tvm_store_matrix_sync(Conv2dOutput.wmma.accumulator, 16, 16, 16, 0, @tir.tvm_access_ptr(@tir.type_annotation(, dtype=float16), compute.shared, 0, 256, 2, dtype=handle), 16, "row_major", dtype=handle)
-    }
-    for (nn.inner.ff.inner.fused.outer.outer.outer.outer: int32, 0, 8) {
-      attr [IterVar(threadIdx.z, (nullptr), "ThreadIndex", "threadIdx.z")] "thread_extent" = 1;
-      attr [IterVar(threadIdx.y, (nullptr), "ThreadIndex", "threadIdx.y")] "thread_extent" = 1;
-      attr [IterVar(threadIdx.x, (nullptr), "ThreadIndex", "threadIdx.x")] "thread_extent" = 32;
-      Conv2dOutput_2[(((((nn.inner.ff.inner.fused.outer.outer.outer.outer*50176) + (floordiv(threadIdx.x, 16)*25088)) + (blockIdx.z*512)) + (blockIdx.y*16)) + floormod(threadIdx.x, 16))] = (float16*)compute.shared[((nn.inner.ff.inner.fused.outer.outer.outer.outer*32) + threadIdx.x)]
-    }
-  }
-}
+0.183296,0.133120,0.077824,39.880222
+0.115232,0.083968,0.034816,8.362048
+0.110464,0.082944,0.034816,5.509504
+0.110272,0.081920,0.032768,6.101632
+0.117248,0.080896,0.032768,6.106464
+0.053216,0.029696,0.052224,5.324448
+0.062272,0.047104,0.053248,3.603040
+0.064416,0.047104,0.053248,3.593696
+0.064736,0.047104,0.053248,3.576448
+0.054880,0.025600,0.093184,3.266080
+0.043712,0.036864,0.092160,3.371584
+0.044768,0.035840,0.093184,3.235072
+0.045728,0.035840,0.092160,3.097600
+0.052480,0.034816,0.161792,3.390912
+0.045312,0.050176,0.163840,3.927136
+0.047712,0.050176,0.165888,3.703936
+0.048160,0.050176,0.165888,3.824736
 
-
-=========================================
-@main = primfn(Data_1: handle, Filter_1: handle, Conv2dOutput_1: handle) -> ()
-  attr = {"from_legacy_te_schedule": True, "global_symbol": "main", "tir.noalias": True}
-  buffers = {Conv2dOutput: Buffer(Conv2dOutput_2: Pointer(float16), float16, [16, 7, 7, 512], []),
-             Filter: Buffer(Filter_2: Pointer(float16), float16, [3, 3, 512, 512], []),
-             Data: Buffer(Data_2: Pointer(float16), float16, [16, 7, 7, 512], [])}
-  buffer_map = {Data_1: Data, Filter_1: Filter, Conv2dOutput_1: Conv2dOutput} {
-  attr [IterVar(blockIdx.z: int32, (nullptr), "ThreadIndex", "blockIdx.z")] "thread_extent" = 49;
-  allocate(Conv2dOutput.wmma.accumulator: Pointer(wmma.accumulator float16), float16, [256]), storage_scope = wmma.accumulator;
-  allocate(compute.shared: Pointer(shared float16), float16, [256]), storage_scope = shared;
-  allocate(compute.d.shared: Pointer(shared float16), float16, [256]), storage_scope = shared;
-  allocate(compute.shared.wmma.matrix_a: Pointer(wmma.matrix_a float16), float16, [256]), storage_scope = wmma.matrix_a;
-  allocate(compute.d.shared.wmma.matrix_b: Pointer(wmma.matrix_b float16), float16, [256]), storage_scope = wmma.matrix_b;
-  attr [IterVar(blockIdx.x: int32, (nullptr), "ThreadIndex", "blockIdx.x")] "thread_extent" = 1;
-  attr [IterVar(blockIdx.y: int32, (nullptr), "ThreadIndex", "blockIdx.y")] "thread_extent" = 32 {
-    attr [IterVar(threadIdx.y: int32, (nullptr), "ThreadIndex", "threadIdx.y")] "thread_extent" = 1;
-    attr [IterVar(threadIdx.z: int32, (nullptr), "ThreadIndex", "threadIdx.z")] "thread_extent" = 1 {
-      @tir.tvm_fill_fragment(Conv2dOutput.wmma.accumulator, 16, 16, 16, 0, 0f32, dtype=handle)
-      for (ry: int32, 0, 3) {
-        for (rx: int32, 0, 3) {
-          for (rc.outer.outer: int32, 0, 32) {
-            for (ax0.ax3.fused.outer.outer.outer.outer: int32, 0, 8) {
-              attr [IterVar(threadIdx.x: int32, (nullptr), "ThreadIndex", "threadIdx.x")] "thread_extent" = 32;
-              compute.shared[((ax0.ax3.fused.outer.outer.outer.outer*32) + threadIdx.x)] = @tir.if_then_else(((((1 <= (floordiv(blockIdx.z, 7) + ry)) && ((floordiv(blockIdx.z, 7) + ry) < 8)) && (1 <= (rx + floormod(blockIdx.z, 7)))) && ((rx + floormod(blockIdx.z, 7)) < 8)), (float16*)Data_2[((((((((ax0.ax3.fused.outer.outer.outer.outer*50176) + (floordiv(threadIdx.x, 16)*25088)) + (ry*3584)) + (blockIdx.z*512)) + (rx*512)) + (rc.outer.outer*16)) + floormod(threadIdx.x, 16)) - 4096)], 0f16, dtype=float16)
-            }
-            for (ax2.ax3.fused.outer.outer.outer.outer: int32, 0, 8) {
-              attr [IterVar(threadIdx.x, (nullptr), "ThreadIndex", "threadIdx.x")] "thread_extent" = 32;
-              compute.d.shared[((ax2.ax3.fused.outer.outer.outer.outer*32) + threadIdx.x)] = (float16*)Filter_2[(((((((ry*786432) + (rx*262144)) + (rc.outer.outer*8192)) + (ax2.ax3.fused.outer.outer.outer.outer*1024)) + (floordiv(threadIdx.x, 16)*512)) + (blockIdx.y*16)) + floormod(threadIdx.x, 16))]
-            }
-            @tir.tvm_load_matrix_sync(compute.shared.wmma.matrix_a, 16, 16, 16, 0, @tir.tvm_access_ptr(@tir.type_annotation(, dtype=float16), compute.shared, 0, 256, 1, dtype=handle), 16, "row_major", dtype=handle)
-            @tir.tvm_load_matrix_sync(compute.d.shared.wmma.matrix_b, 16, 16, 16, 0, @tir.tvm_access_ptr(@tir.type_annotation(, dtype=float16), compute.d.shared, 0, 256, 1, dtype=handle), 16, "row_major", dtype=handle)
-            @tir.tvm_mma_sync(Conv2dOutput.wmma.accumulator, 0, compute.shared.wmma.matrix_a, 0, compute.d.shared.wmma.matrix_b, 0, Conv2dOutput.wmma.accumulator, 0, dtype=handle)
-          }
-        }
-      }
-      @tir.tvm_store_matrix_sync(Conv2dOutput.wmma.accumulator, 16, 16, 16, 0, @tir.tvm_access_ptr(@tir.type_annotation(, dtype=float16), compute.shared, 0, 256, 2, dtype=handle), 16, "row_major", dtype=handle)
-    }
-    for (nn.inner.ff.inner.fused.outer.outer.outer.outer: int32, 0, 8) {
-      attr [IterVar(threadIdx.z, (nullptr), "ThreadIndex", "threadIdx.z")] "thread_extent" = 1;
-      attr [IterVar(threadIdx.y, (nullptr), "ThreadIndex", "threadIdx.y")] "thread_extent" = 1;
-      attr [IterVar(threadIdx.x, (nullptr), "ThreadIndex", "threadIdx.x")] "thread_extent" = 32;
-      Conv2dOutput_2[(((((nn.inner.ff.inner.fused.outer.outer.outer.outer*50176) + (floordiv(threadIdx.x, 16)*25088)) + (blockIdx.z*512)) + (blockIdx.y*16)) + floormod(threadIdx.x, 16))] = (float16*)compute.shared[((nn.inner.ff.inner.fused.outer.outer.outer.outer*32) + threadIdx.x)]
-    }
-  }
-}
-
-
-=========================================
-@main = primfn(Data_1: handle, Filter_1: handle, Conv2dOutput_1: handle) -> ()
-  attr = {"from_legacy_te_schedule": True, "global_symbol": "main", "tir.noalias": True}
-  buffers = {Conv2dOutput: Buffer(Conv2dOutput_2: Pointer(float16), float16, [16, 7, 7, 512], []),
-             Filter: Buffer(Filter_2: Pointer(float16), float16, [3, 3, 512, 512], []),
-             Data: Buffer(Data_2: Pointer(float16), float16, [16, 7, 7, 512], [])}
-  buffer_map = {Data_1: Data, Filter_1: Filter, Conv2dOutput_1: Conv2dOutput} {
-  attr [IterVar(blockIdx.z: int32, (nullptr), "ThreadIndex", "blockIdx.z")] "thread_extent" = 49;
-  allocate(Conv2dOutput.wmma.accumulator: Pointer(wmma.accumulator float16), float16, [256]), storage_scope = wmma.accumulator;
-  allocate(compute.shared: Pointer(shared float16), float16, [256]), storage_scope = shared;
-  allocate(compute.d.shared: Pointer(shared float16), float16, [256]), storage_scope = shared;
-  allocate(compute.shared.wmma.matrix_a: Pointer(wmma.matrix_a float16), float16, [256]), storage_scope = wmma.matrix_a;
-  allocate(compute.d.shared.wmma.matrix_b: Pointer(wmma.matrix_b float16), float16, [256]), storage_scope = wmma.matrix_b;
-  attr [IterVar(blockIdx.x: int32, (nullptr), "ThreadIndex", "blockIdx.x")] "thread_extent" = 1;
-  attr [IterVar(blockIdx.y: int32, (nullptr), "ThreadIndex", "blockIdx.y")] "thread_extent" = 32 {
-    attr [IterVar(threadIdx.y: int32, (nullptr), "ThreadIndex", "threadIdx.y")] "thread_extent" = 1;
-    attr [IterVar(threadIdx.z: int32, (nullptr), "ThreadIndex", "threadIdx.z")] "thread_extent" = 1 {
-      @tir.tvm_fill_fragment(Conv2dOutput.wmma.accumulator, 16, 16, 16, 0, 0f32, dtype=handle)
-      for (ry: int32, 0, 3) {
-        for (rx: int32, 0, 3) {
-          for (rc.outer.outer: int32, 0, 32) {
-            for (ax0.ax3.fused.outer.outer.outer.outer: int32, 0, 8) {
-              attr [IterVar(threadIdx.x: int32, (nullptr), "ThreadIndex", "threadIdx.x")] "thread_extent" = 32;
-              compute.shared[((ax0.ax3.fused.outer.outer.outer.outer*32) + threadIdx.x)] = @tir.if_then_else(((((1 <= (floordiv(blockIdx.z, 7) + ry)) && ((floordiv(blockIdx.z, 7) + ry) < 8)) && (1 <= (rx + floormod(blockIdx.z, 7)))) && ((rx + floormod(blockIdx.z, 7)) < 8)), (float16*)Data_2[((((((((ax0.ax3.fused.outer.outer.outer.outer*50176) + (floordiv(threadIdx.x, 16)*25088)) + (ry*3584)) + (blockIdx.z*512)) + (rx*512)) + (rc.outer.outer*16)) + floormod(threadIdx.x, 16)) - 4096)], 0f16, dtype=float16)
-            }
-            for (ax2.ax3.fused.outer.outer.outer.outer: int32, 0, 8) {
-              attr [IterVar(threadIdx.x, (nullptr), "ThreadIndex", "threadIdx.x")] "thread_extent" = 32;
-              compute.d.shared[((ax2.ax3.fused.outer.outer.outer.outer*32) + threadIdx.x)] = (float16*)Filter_2[(((((((ry*786432) + (rx*262144)) + (rc.outer.outer*8192)) + (ax2.ax3.fused.outer.outer.outer.outer*1024)) + (floordiv(threadIdx.x, 16)*512)) + (blockIdx.y*16)) + floormod(threadIdx.x, 16))]
-            }
-            @tir.tvm_load_matrix_sync(compute.shared.wmma.matrix_a, 16, 16, 16, 0, @tir.tvm_access_ptr(@tir.type_annotation(, dtype=float16), compute.shared, 0, 256, 1, dtype=handle), 16, "row_major", dtype=handle)
-            @tir.tvm_load_matrix_sync(compute.d.shared.wmma.matrix_b, 16, 16, 16, 0, @tir.tvm_access_ptr(@tir.type_annotation(, dtype=float16), compute.d.shared, 0, 256, 1, dtype=handle), 16, "row_major", dtype=handle)
-            @tir.tvm_mma_sync(Conv2dOutput.wmma.accumulator, 0, compute.shared.wmma.matrix_a, 0, compute.d.shared.wmma.matrix_b, 0, Conv2dOutput.wmma.accumulator, 0, dtype=handle)
-          }
-        }
-      }
-      @tir.tvm_store_matrix_sync(Conv2dOutput.wmma.accumulator, 16, 16, 16, 0, @tir.tvm_access_ptr(@tir.type_annotation(, dtype=float16), compute.shared, 0, 256, 2, dtype=handle), 16, "row_major", dtype=handle)
-    }
-    for (nn.inner.ff.inner.fused.outer.outer.outer.outer: int32, 0, 8) {
-      attr [IterVar(threadIdx.z, (nullptr), "ThreadIndex", "threadIdx.z")] "thread_extent" = 1;
-      attr [IterVar(threadIdx.y, (nullptr), "ThreadIndex", "threadIdx.y")] "thread_extent" = 1;
-      attr [IterVar(threadIdx.x, (nullptr), "ThreadIndex", "threadIdx.x")] "thread_extent" = 32;
-      Conv2dOutput_2[(((((nn.inner.ff.inner.fused.outer.outer.outer.outer*50176) + (floordiv(threadIdx.x, 16)*25088)) + (blockIdx.z*512)) + (blockIdx.y*16)) + floormod(threadIdx.x, 16))] = (float16*)compute.shared[((nn.inner.ff.inner.fused.outer.outer.outer.outer*32) + threadIdx.x)]
-    }
-  }
-}
-
-
-=========================================
+0.182272,0.135168,0.078848,39.853439
+0.115904,0.084992,0.035840,8.473216
+0.110208,0.082944,0.034816,5.490944
+0.110880,0.081920,0.033792,6.137952
+0.115488,0.081920,0.033792,6.147872
+0.055776,0.029696,0.053248,5.191424
+0.064928,0.046080,0.054272,3.572608
+0.063616,0.046080,0.054272,3.649088
+0.064096,0.046080,0.052224,3.568992
+0.048864,0.026624,0.095232,3.573856
+0.049088,0.035840,0.093184,3.119232
+0.045248,0.035840,0.093184,3.211520
+0.046880,0.035840,0.092160,3.260416
+0.054880,0.033792,0.162816,3.351232
+0.046624,0.049152,0.163840,3.844192
+0.046144,0.050176,0.163840,3.778976
+0.047200,0.050176,0.163840,3.766528
