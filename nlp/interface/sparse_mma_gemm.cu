@@ -122,3 +122,101 @@ void sparse_mma_gemm_device(const half *inputA, const half *inputB, int inputM, 
 
 }
 
+void cublas_gemm(const half *inputA, const half *inputB, int inputM, int inputK, int inputN, half *output) {
+    // 因为为列存储，为了方便，设置转置
+    cublasHandle_t cublasH = nullptr;
+    cudaStream_t stream = nullptr;
+
+    const int m = inputM;
+    const int n = inputN;
+    const int k = inputK;
+    const int lda = k; // 因为转置了 因此ld代表列数
+    const int ldb = n;
+    const int ldc = m; // c的ld都是m
+
+    const half alpha = 1.0;
+    const half beta = 0.0;
+
+    half *d_A = nullptr;
+    half *d_B = nullptr;
+    half *d_C = nullptr;
+
+    cublasOperation_t transa = CUBLAS_OP_T;
+    cublasOperation_t transb = CUBLAS_OP_T;
+
+    /* step 1: create cublas handle, bind a stream */
+    CHECK_CUBLAS( cublasCreate(&cublasH) );
+
+    CHECK_CUDA( cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking) );
+    CHECK_CUBLAS( cublasSetStream(cublasH, stream) );
+
+    /* step 2: copy data to device */
+    CHECK_CUDA( cudaMalloc(&d_A, sizeof(half) * m * k) );
+    CHECK_CUDA( cudaMalloc(&d_B, sizeof(half) * k * n) );
+    CHECK_CUDA( cudaMalloc(&d_C, sizeof(half) * m * n) );
+
+    CHECK_CUDA( cudaMemcpyAsync(d_A, inputA, sizeof(half) * m * k, cudaMemcpyHostToDevice, stream) );
+    CHECK_CUDA( cudaMemcpyAsync(d_B, inputB, sizeof(half) * k * n, cudaMemcpyHostToDevice, stream) );
+
+
+    /* step 3: compute */
+    CHECK_CUBLAS( cublasHgemm(cublasH, transa, transb, m, n, k, &alpha, d_A, lda, d_B, ldb, &beta, d_C, ldc) );
+
+    /* step 4: copy data to host */
+    CHECK_CUDA( cudaMemcpyAsync(output, d_C, sizeof(half) * m * n, cudaMemcpyDeviceToHost, stream));
+
+    CHECK_CUDA( cudaStreamSynchronize(stream) );
+
+    /* free resources */
+    CHECK_CUDA( cudaFree(d_A) );
+    CHECK_CUDA( cudaFree(d_B) );
+    CHECK_CUDA( cudaFree(d_C) );
+
+    CHECK_CUBLAS( cublasDestroy(cublasH) );
+
+    CHECK_CUDA( cudaStreamDestroy(stream) );
+
+    //CHECK_CUDA( cudaDeviceReset() );
+}
+
+__global__ void transpose1(half *A, half *B, const int N)
+{
+    const int nx = blockIdx.x * blockDim.x + threadIdx.x;
+    const int ny = blockIdx.y * blockDim.y + threadIdx.y;
+    if (nx < N && ny < N)
+    {
+        B[nx * N + ny] = A[ny * N + nx];
+    }
+}
+
+__global__ void transpose2(half *A, half *B, const int N)
+{
+    const int nx = blockIdx.x * blockDim.x + threadIdx.x;
+    const int ny = blockIdx.y * blockDim.y + threadIdx.y;
+    if (nx < N && ny < N)
+    {
+        B[ny * N + nx] = A[nx * N + ny];
+    }
+}
+
+__global__ void mask_matrix_gpu(half *tgt, const int *mask_mat, int row, int col) {
+    const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    const int idy = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (idx < row && idy < col) {
+        if (mask_mat[idx * col + idy] == 0)
+        tgt[idx * col + idy] = 0;
+    }
+}
+
+void position_encoding(half *input, int batch, int max_sen_len, int ebd) {
+    return;
+}
+
+void softmax(half *item) {
+    return;
+}
+
+__global__ void transpose(half *src, half* tgt, int row, int col) {
+    return;
+}

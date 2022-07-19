@@ -3,7 +3,7 @@ project(Nlp CUDA)
 
 set(CMAKE_CUDA_STANDARD 17)
 
-add_executable(Nlp ./interface/sparse_mma_gemm.cu ./interface/sparse_mma_gemm.cuh nlp_main.cu)
+add_executable(Nlp ./interface/sparse_mma_gemm.cu ./interface/sparse_mma_gemm.cuh nlp_main.cu ../spmma/utils/CudaTime.cu ../spmma/utils/CudaTime.cuh)
 
 set_target_properties(Nlp PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON)
@@ -17,4 +17,5 @@ target_include_directories(Nlp
 target_link_libraries(Nlp
         PUBLIC cusparse
         PUBLIC cusparseLt
+        PUBLIC cublas
         )
