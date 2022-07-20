@@ -51,6 +51,9 @@ using namespace std;
 void sparse_mma_gemm_device(const half *inputA, const half *inputB, int inputM, int inputK, int inputN, bool isValid, half *outputD);
 
 void cublas_gemm(const half *inputA, const half *inputB, int inputM, int inputK, int inputN, half *output);
+void cublas_gemm_device(const half *inputA, const half *inputB, int inputM, int inputK, int inputN, half *output);
+
+//void mask_gemm(half *inputA, half *inputB, int *mask, int inputM, int inputK, int inputN, half *output);
 /**
  * 从 host 端向 device 端拷贝数据的同时进行 padding 操作
  * @param src 源矩阵

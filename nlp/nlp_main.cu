@@ -83,43 +83,47 @@ void test_mask() {
         }
         printf("\n");
     }
-    printf("V: \n");
-    for (int i = 0; i < sen; i++) {
-        for (int j = 0; j < ebd / h; j++) {
-            printf("%.2f ", __half2float(V[i * sen + j]));
+//    printf("V: \n");
+//    for (int i = 0; i < sen; i++) {
+//        for (int j = 0; j < ebd / h; j++) {
+//            printf("%.2f ", __half2float(V[i * sen + j]));
+//        }
+//        printf("\n");
+//    }
+
+    half *dAtt, *dV;
+    int *dM;
+    cudaMalloc(&dAtt, sizeof(half) * sen * sen);
+    cudaMalloc(&dV, sizeof(half) * sen * ebd / h);
+    cudaMalloc(&dM, sizeof(int) * sen * sen);
+
+    cudaMemcpy(dAtt, att, sizeof(half) * sen * sen, cudaMemcpyHostToDevice);
+    cudaMemcpy(dV, V, sizeof(half) * sen * ebd / h, cudaMemcpyHostToDevice);
+    cudaMemcpy(dM, masks, sizeof(int) * sen * sen, cudaMemcpyHostToDevice);
+
+    bool doMask = true;
+
+    half *out = new half[sen * ebd / h];
+    for (int i = 0; i < 10; i++) {
+        auto t = new CudaTime();
+        t->initAndStart();
+
+        if (doMask) {
+            mask_matrix_gpu<<<16, 32>>>(dAtt, dM, sen, sen);
+            sparse_mma_gemm_device(dAtt, dV, sen, sen, ebd / h, true, out);
+        } else {
+            cublas_gemm_device(dAtt, dV, sen, sen, ebd / h, out);
         }
-        printf("\n");
+
+        float time = t->endAndGetTime();
+        printf("time: %fms\n", time);
     }
 
-    //定义两个cuda事件类型
-    cudaEvent_t start, stop;
-
-    //初始化
-    //cudaEventCreateWithFlags(&start, cudaEventBlockingSync);
-    //cudaEventCreateWithFlags(&stop, cudaEventBlockingSync);
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-
-    //代表事件开始
-    cudaEventRecord(start);
-    cudaEventQuery(start);
-
-
-    //代表事件结束
-    cudaEventRecord(stop);
-    //保证事件结束这一纪录完成后再执行后面的代码
-    cudaEventSynchronize(stop);
-
-    //计算start和stop之间的时间差
-    float elapsed_time;
-    cudaEventElapsedTime(&elapsed_time, start, stop);
-
-    printf("time: %fms\n", elapsed_time);
-
-    //销毁事件
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
-
+    for (int i = 0; i < sen; i++) {
+        for (int j = 0; j < ebd / h; j++) {
+            printf("%.2f ", __half2float(out[i * ebd / h + j]));
+        }
+    }
 }
 
 void test_cublas() {
@@ -156,7 +160,7 @@ void test_cublas() {
 }
 
 int main() {
-    test_cublas();
+    test_mask();
     return 0;
     half *hA = new half[256];
     half *hB = new half[256];
