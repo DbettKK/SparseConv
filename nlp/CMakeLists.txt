@@ -3,7 +3,9 @@ project(Nlp CUDA)
 
 set(CMAKE_CUDA_STANDARD 17)
 
-add_executable(Nlp ./interface/sparse_mma_gemm.cu ./interface/sparse_mma_gemm.cuh nlp_main.cu ../spmma/utils/CudaTime.cu ../spmma/utils/CudaTime.cuh)
+add_executable(Nlp ./interface/sparse_mma_gemm.cu ./interface/sparse_mma_gemm.cuh nlp_main.cu
+        ../spmma/utils/CudaTime.cu ../spmma/utils/CudaTime.cuh
+        transformer/net.cu transformer/net.cuh transformer/Encoder.cu transformer/Encoder.cuh transformer/Attenion.cu transformer/Attention.cuh transformer/MatrixHalf.cu transformer/MatrixHalf.cuh transformer/kernels_transformer.cuh transformer/utils/checks.cuh transformer/kernels_transformer.cu)
 
 set_target_properties(Nlp PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON)
@@ -15,7 +17,7 @@ target_include_directories(Nlp
         )
 
 target_link_libraries(Nlp
-        PUBLIC cusparse
         PUBLIC cusparseLt
         PUBLIC cublas
+        PUBLIC cusparse
         )

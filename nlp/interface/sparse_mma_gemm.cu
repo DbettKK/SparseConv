@@ -4,7 +4,7 @@
 
 #include "sparse_mma_gemm.cuh"
 
-void padCudaMemcpy2D(const half* src, int row, int col, half *dest, int row_padding, int col_padding) {
+void padCudaMemcpy2D_2(const half* src, int row, int col, half *dest, int row_padding, int col_padding) {
     CHECK_CUDA( cudaMemset(dest, 0, row_padding * col_padding * sizeof(half)) )
     if (col == col_padding) {
         //CHECK_CUDA( cudaMemcpy(dest, src, row * col_padding * sizeof(half), cudaMemcpyHostToDevice) )
@@ -16,7 +16,7 @@ void padCudaMemcpy2D(const half* src, int row, int col, half *dest, int row_padd
     }
 }
 
-void sparse_mma_gemm_device(const half *inputA, const half *inputB, int inputM, int inputK, int inputN, bool isValid, half *outputD) {
+void sparse_mma_gemm_device_2(const half *inputA, const half *inputB, int inputM, int inputK, int inputN, bool isValid, half *outputD) {
     int m = inputM % 8 ? inputM + 8 - inputM % 8 : inputM;
     int k = inputK % 16 ? inputK + 16 - inputK % 16 : inputK;
     int n = inputN % 8 ? inputN + 8 - inputN % 8 : inputN;
@@ -181,7 +181,7 @@ void cublas_gemm(const half *inputA, const half *inputB, int inputM, int inputK,
     //CHECK_CUDA( cudaDeviceReset() );
 }
 
-void cublas_gemm_device(const half *d_A, const half *d_B, int inputM, int inputK, int inputN, half *output) {
+void cublas_gemm_device_s(const half *d_A, const half *d_B, int inputM, int inputK, int inputN, half *output) {
     // 因为为列存储，为了方便，设置转置
     cublasHandle_t cublasH = nullptr;
     cudaStream_t stream = nullptr;
@@ -230,6 +230,261 @@ void cublas_gemm_device(const half *d_A, const half *d_B, int inputM, int inputK
     //CHECK_CUDA( cudaDeviceReset() );
 }
 
+void cusparse_blocked_ell_gemm_device(half *inputA, half *inputB, int inputM, int inputK, int inputN, half *out) {
+    // Host problem definition
+    int ell_blk_size = 2, ell_cols = 4;
+    int ldA = inputK;
+    cusparseDnMatDescr_t matA;
+    cusparseSpMatDescr_t matA_cmpr;
+    cusparseHandle_t     handle = nullptr;
+    void*                dBuffer    = nullptr;
+    size_t               bufferSize = 0;
+    CHECK_CUSPARSE( cusparseCreate(&handle) )
+    CHECK_CUSPARSE( cusparseCreateDnMat(&matA, inputM, inputK, ldA, inputA, CUDA_R_16F, CUSPARSE_ORDER_ROW) )
+    CHECK_CUSPARSE( cusparseCreateBlockedEll(&matA_cmpr, inputM, inputK, ell_blk_size, ell_cols, nullptr, nullptr,
+                                             CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_16F) )
+    CHECK_CUSPARSE( cusparseDenseToSparse_bufferSize(handle, matA, matA_cmpr, CUSPARSE_DENSETOSPARSE_ALG_DEFAULT, &bufferSize) )
+    CHECK_CUDA( cudaMalloc(&dBuffer, bufferSize) )
+
+    // analysis后就可以取得相应参数了
+    CHECK_CUSPARSE( cusparseDenseToSparse_analysis(handle, matA, matA_cmpr, CUSPARSE_DENSETOSPARSE_ALG_DEFAULT, dBuffer) )
+
+    // execute Sparse to Dense conversion
+    CHECK_CUSPARSE( cusparseDenseToSparse_convert(handle, matA, matA_cmpr, CUSPARSE_DENSETOSPARSE_ALG_DEFAULT, dBuffer) )
+
+    // get all value
+    int *ellColIndex = new int[inputM * inputK / ell_blk_size / ell_blk_size];
+    half *ell_value = new half[200];
+    int *dCol;
+    cudaMalloc(&dCol, sizeof(int) * inputM * inputK / ell_blk_size / ell_blk_size);
+    int64_t r, c;
+    int64_t ell_b_s, ell_cols_t = 3;
+    cusparseIndexType_t typ = CUSPARSE_INDEX_32I;
+    cusparseIndexBase_t typ2;
+    cudaDataType typ3;
+    CHECK_CUSPARSE( cusparseBlockedEllGet(matA_cmpr, &r, &c, &ell_b_s, &ell_cols_t, (void **)&dCol, (void **)&ell_value, &typ, &typ2,
+                          &typ3) )
+    printf("ell_col: %lld\n", ell_cols_t);
+    return ;
+
+/*
+    int   num_rows     = 4;
+    int   num_cols     = 6;
+    int   ld           = num_cols;
+    int   dense_size   = ld * num_rows;
+    float h_dense[]    = {0.0f,  0.0f,  1.0f,  2.0f,  0.0f,  0.0f,
+                          0.0f,  0.0f,  3.0f,  4.0f,  0.0f,  0.0f,
+                          5.0f,  6.0f,  0.0f,  0.0f,  7.0f,  8.0f,
+                          9.0f, 10.0f,  0.0f,  0.0f, 11.0f, 12.0f };
+    int   ell_blk_size = 2;
+    int   ell_width    = 4;
+    int   nnz          = ell_width * num_rows;
+    int   h_ell_columns[]         = {1, -1, 0, 2};
+    float h_ell_values[]          = {0, 0, 0, 0, 0, 0, 0, 0,
+                                     0, 0, 0, 0, 0, 0, 0, 0};
+    float h_ell_values_result[]   = {1.0f,  2.0f,  0.0f,  0.0f,
+                                     3.0f,  4.0f,  0.0f,  0.0f,
+                                     5.0f,  6.0f,  7.0f,  8.0f,
+                                     9.0f, 10.0f, 11.0f, 12.0f};
+    //--------------------------------------------------------------------------
+    // Device memory management
+    int   *d_ell_columns;
+    float *d_ell_values,  *d_dense;
+    CHECK_CUDA( cudaMalloc((void**) &d_dense, dense_size * sizeof(float)))
+    CHECK_CUDA( cudaMalloc((void**) &d_ell_columns,
+                           nnz / (ell_blk_size * ell_blk_size) * sizeof(int)))
+    CHECK_CUDA( cudaMalloc((void**) &d_ell_values,
+                           nnz * sizeof(float)))
+    CHECK_CUDA( cudaMemcpy(d_dense, h_dense, dense_size * sizeof(float),
+                           cudaMemcpyHostToDevice) )
+    CHECK_CUDA( cudaMemcpy(d_ell_columns, h_ell_columns,
+                           nnz / (ell_blk_size * ell_blk_size) * sizeof(int),
+                           cudaMemcpyHostToDevice) )
+    CHECK_CUDA( cudaMemcpy(d_ell_values, h_ell_values,
+                           nnz * sizeof(float),
+                           cudaMemcpyHostToDevice) )
+    //--------------------------------------------------------------------------
+    // CUSPARSE APIs
+    cusparseHandle_t     handle = NULL;
+    cusparseSpMatDescr_t matB;
+    cusparseDnMatDescr_t matA;
+    void*                dBuffer    = NULL;
+    size_t               bufferSize = 0;
+    CHECK_CUSPARSE( cusparseCreate(&handle) )
+    // Create dense matrix A
+    CHECK_CUSPARSE( cusparseCreateDnMat(&matA, num_rows, num_cols, ld, d_dense,
+                                        CUDA_R_32F, CUSPARSE_ORDER_ROW) )
+
+    // Create sparse matrix B in Blocked ELL format
+    CHECK_CUSPARSE( cusparseCreateBlockedEll(&matB, num_rows, num_cols,
+                                             ell_blk_size, ell_width,
+                                             d_ell_columns, d_ell_values,
+                                             CUSPARSE_INDEX_32I,
+                                             CUSPARSE_INDEX_BASE_ZERO,
+                                             CUDA_R_32F) )
+
+    // allocate an external buffer if needed
+    CHECK_CUSPARSE( cusparseDenseToSparse_bufferSize(
+            handle, matA, matB,
+            CUSPARSE_DENSETOSPARSE_ALG_DEFAULT,
+            &bufferSize) )
+    CHECK_CUDA( cudaMalloc(&dBuffer, bufferSize) )
+
+    // execute Sparse to Dense conversion
+    CHECK_CUSPARSE( cusparseDenseToSparse_analysis(handle, matA, matB,
+                                                   CUSPARSE_DENSETOSPARSE_ALG_DEFAULT,
+                                                   dBuffer) )
+
+    // execute Sparse to Dense conversion
+    CHECK_CUSPARSE( cusparseDenseToSparse_convert(handle, matA, matB,
+                                                  CUSPARSE_DENSETOSPARSE_ALG_DEFAULT,
+                                                  dBuffer) )
+
+    // destroy matrix/vector descriptors
+    CHECK_CUSPARSE( cusparseDestroyDnMat(matA) )
+    CHECK_CUSPARSE( cusparseDestroySpMat(matB) )
+    CHECK_CUSPARSE( cusparseDestroy(handle) )
+    //--------------------------------------------------------------------------
+    // device result check
+    CHECK_CUDA( cudaMemcpy(h_ell_values, d_ell_values,
+                           nnz * sizeof(float),
+                           cudaMemcpyDeviceToHost) )
+    int correct = 1;
+    for (int i = 0; i < nnz; i++) {
+        if (h_ell_values[i] != h_ell_values_result[i]) {
+            correct = 0;
+            break;
+        }
+    }
+    if (correct)
+        printf("dense2sparse_blockedell_example test PASSED\n");
+    else
+        printf("dense2sparse_blockedell_example test FAILED: wrong result\n");
+    //--------------------------------------------------------------------------
+    // device memory deallocation
+    CHECK_CUDA( cudaFree(dBuffer) )
+    CHECK_CUDA( cudaFree(d_ell_columns) )
+    CHECK_CUDA( cudaFree(d_ell_values) )
+    CHECK_CUDA( cudaFree(d_dense) )
+
+    // Host problem definition
+    int   A_num_rows      = 4;
+    int   A_num_cols      = 4;
+    int   A_ell_blocksize = 2;
+    int   A_ell_cols      = 2;
+    int   A_num_blocks    = A_ell_cols * A_num_rows /
+                            (A_ell_blocksize * A_ell_blocksize);
+    int   B_num_rows      = A_num_cols;
+    int   B_num_cols      = 3;
+    int   ldb             = B_num_rows;
+    int   ldc             = A_num_rows;
+    int   B_size          = ldb * B_num_cols;
+    int   C_size          = ldc * B_num_cols;
+    int   hA_columns[]    = { 1, 0};
+    __half hA_values[]    = { 1.0f, 2.0f, 3.0f, 4.0f,
+                              5.0f, 6.0f, 7.0f, 8.0f};
+    __half hB[]           = { 1.0f,  2.0f,  3.0f,  4.0f,
+                              5.0f,  6.0f,  7.0f,  8.0f,
+                              9.0f, 10.0f, 11.0f, 12.0f };
+    __half hC[]           = { 0.0f, 0.0f, 0.0f, 0.0f,
+                              0.0f, 0.0f, 0.0f, 0.0f,
+                              0.0f, 0.0f, 0.0f, 0.0f };
+    __half hC_result[]    = { 11.0f, 25.0f,  17.0f,  23.0f,
+                              23.0f, 53.0f,  61.0f,  83.0f,
+                              35.0f, 81.0f, 105.0f, 143.0f };
+    float alpha           = 1.0f;
+    float beta            = 0.0f;
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    // Device memory management
+    int    *dA_columns;
+    __half *dA_values, *dB, *dC;
+    CHECK_CUDA( cudaMalloc((void**) &dA_columns, A_num_blocks * sizeof(int)) )
+    CHECK_CUDA( cudaMalloc((void**) &dA_values,
+                           A_ell_cols * A_num_rows * sizeof(__half)) )
+    CHECK_CUDA( cudaMalloc((void**) &dB, B_size * sizeof(__half)) )
+    CHECK_CUDA( cudaMalloc((void**) &dC, C_size * sizeof(__half)) )
+
+    CHECK_CUDA( cudaMemcpy(dA_columns, hA_columns,
+                           A_num_blocks * sizeof(int),
+                           cudaMemcpyHostToDevice) )
+    CHECK_CUDA( cudaMemcpy(dA_values, hA_values,
+                           A_ell_cols * A_num_rows * sizeof(__half),
+                           cudaMemcpyHostToDevice) )
+    CHECK_CUDA( cudaMemcpy(dB, hB, B_size * sizeof(__half),
+                           cudaMemcpyHostToDevice) )
+    CHECK_CUDA( cudaMemcpy(dC, hC, C_size * sizeof(__half),
+                           cudaMemcpyHostToDevice) )
+    //--------------------------------------------------------------------------
+    // CUSPARSE APIs
+    cusparseHandle_t     handle = NULL;
+    cusparseSpMatDescr_t matA;
+    cusparseDnMatDescr_t matB, matC;
+    void*                dBuffer    = NULL;
+    size_t               bufferSize = 0;
+    CHECK_CUSPARSE( cusparseCreate(&handle) )
+    // Create sparse matrix A in blocked ELL format
+    CHECK_CUSPARSE( cusparseCreateBlockedEll(
+            &matA,
+            A_num_rows, A_num_cols, A_ell_blocksize,
+            A_ell_cols, dA_columns, dA_values,
+            CUSPARSE_INDEX_32I,
+            CUSPARSE_INDEX_BASE_ZERO, CUDA_R_16F) )
+    // Create dense matrix B
+    CHECK_CUSPARSE( cusparseCreateDnMat(&matB, A_num_cols, B_num_cols, ldb, dB,
+                                        CUDA_R_16F, CUSPARSE_ORDER_COL) )
+    // Create dense matrix C
+    CHECK_CUSPARSE( cusparseCreateDnMat(&matC, A_num_rows, B_num_cols, ldc, dC,
+                                        CUDA_R_16F, CUSPARSE_ORDER_COL) )
+    // allocate an external buffer if needed
+    CHECK_CUSPARSE( cusparseSpMM_bufferSize(
+            handle,
+            CUSPARSE_OPERATION_NON_TRANSPOSE,
+            CUSPARSE_OPERATION_NON_TRANSPOSE,
+            &alpha, matA, matB, &beta, matC, CUDA_R_32F,
+            CUSPARSE_SPMM_ALG_DEFAULT, &bufferSize) )
+    CHECK_CUDA( cudaMalloc(&dBuffer, bufferSize) )
+
+    // execute SpMM
+    CHECK_CUSPARSE( cusparseSpMM(handle,
+                                 CUSPARSE_OPERATION_NON_TRANSPOSE,
+                                 CUSPARSE_OPERATION_NON_TRANSPOSE,
+                                 &alpha, matA, matB, &beta, matC, CUDA_R_32F,
+                                 CUSPARSE_SPMM_ALG_DEFAULT, dBuffer) )
+
+    // destroy matrix/vector descriptors
+    CHECK_CUSPARSE( cusparseDestroySpMat(matA) )
+    CHECK_CUSPARSE( cusparseDestroyDnMat(matB) )
+    CHECK_CUSPARSE( cusparseDestroyDnMat(matC) )
+    CHECK_CUSPARSE( cusparseDestroy(handle) )
+    //--------------------------------------------------------------------------
+    // device result check
+    CHECK_CUDA( cudaMemcpy(hC, dC, C_size * sizeof(__half),
+                           cudaMemcpyDeviceToHost) )
+    int correct = 1;
+    for (int i = 0; i < A_num_rows; i++) {
+        for (int j = 0; j < B_num_cols; j++) {
+            float c_value  = static_cast<float>(hC[i + j * ldc]);
+            float c_result = static_cast<float>(hC_result[i + j * ldc]);
+            if (c_value != c_result) {
+                correct = 0; // direct floating point comparison is not reliable
+                break;
+            }
+        }
+    }
+    if (correct)
+        std::printf("spmm_blockedell_example test PASSED\n");
+    else
+        std::printf("spmm_blockedell_example test FAILED: wrong result\n");
+    //--------------------------------------------------------------------------
+    // device memory deallocation
+    CHECK_CUDA( cudaFree(dBuffer) )
+    CHECK_CUDA( cudaFree(dA_columns) )
+    CHECK_CUDA( cudaFree(dA_values) )
+    CHECK_CUDA( cudaFree(dB) )
+    CHECK_CUDA( cudaFree(dC) )*/
+}
+
 __global__ void transpose1(half *A, half *B, const int N)
 {
     const int nx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -250,21 +505,9 @@ __global__ void transpose2(half *A, half *B, const int N)
     }
 }
 
-__global__ void mask_matrix_gpu(half *tgt, const int *mask_mat, int row, int col) {
-    const int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < row * col) {
-        if (mask_mat[idx] == 0) tgt[idx] = 0;
-    }
-}
+
 
 void position_encoding(half *input, int batch, int max_sen_len, int ebd) {
     return;
 }
 
-void softmax(half *item) {
-    return;
-}
-
-__global__ void transpose(half *src, half* tgt, int row, int col) {
-    return;
-}

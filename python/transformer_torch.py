@@ -76,7 +76,6 @@ class MultiHeadAttention(nn.Module):
                                                                        2)  # k_s: [batch_size x n_heads x len_k x d_k]
         v_s = self.W_V(V).view(batch_size, -1, n_heads, d_v).transpose(1,
                                                                        2)  # v_s: [batch_size x n_heads x len_k x d_v]
-
         attn_mask = attn_mask.unsqueeze(1).repeat(1, n_heads, 1,
                                                   1)  # attn_mask : [batch_size x n_heads x len_q x len_k]
 
