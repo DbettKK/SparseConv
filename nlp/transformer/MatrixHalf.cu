@@ -6,17 +6,17 @@
 
 MatrixHalf::MatrixHalf(half *matrix, int batch, int row, int col) : matrix(matrix), batch(batch), row(row), col(col) {}
 
-MatrixHalf::MatrixHalf(int batch, int row, int col, bool is_device) : matrix(nullptr), batch(batch), row(row), col(col) {
+MatrixHalf::MatrixHalf(int batch, int row, int col, bool is_device) : batch(batch), row(row), col(col) {
     if (!is_device) this->matrix = new half[batch * row * col];
-    cudaMalloc(&this->matrix, sizeof(half) * batch * row * col);
+    else CHECK_CUDA(cudaMalloc(&this->matrix, sizeof(half) * batch * row * col))
 }
 
 MatrixHalf::MatrixHalf(int batch, int row, int col, bool is_device, half init) : batch(batch), row(row), col(col) {
     half *tmp = new half[batch * row * col];
     for (int i = 0; i < batch * row * col; i++) tmp[i] = init;
     if (is_device) {
-        cudaMalloc(&matrix, sizeof(half) * row * col * batch);
-        cudaMemcpy(matrix, tmp, sizeof(half) * row * col * batch, cudaMemcpyHostToDevice);
+        CHECK_CUDA(cudaMalloc(&matrix, sizeof(half) * row * col * batch));
+        CHECK_CUDA(cudaMemcpy(matrix, tmp, sizeof(half) * row * col * batch, cudaMemcpyHostToDevice));
         delete[] tmp;
     } else {
         matrix = tmp;
@@ -56,12 +56,11 @@ void MatrixHalf::setCol(int col) {
 }
 
 void MatrixHalf::gemm(MatrixHalf *item, MatrixHalf *out) {
-    //cublas_gemm_device(this->matrix, item->matrix, this->row, this->col, item->col, out->matrix);
+    cublas_gemm_device(this->matrix, item->matrix, this->row, this->col, item->col, out->matrix);
     //sparse_mma_gemm_device(this->matrix, item->matrix, this->row, this->col, item->col, true, out->matrix);
     //dim3 grid(16, 16);
     //dim3 block(32, 32);
     //gemm_simple<<<grid, block>>>(this->matrix, item->matrix, row, col, item->col, out->matrix);
-
 }
 
 int MatrixHalf::getSize() const {
@@ -86,13 +85,14 @@ void MatrixHalf::print(const std::string& msg, bool is_device) {
     std::cout << msg << std::endl;
     if (is_device) {
         half *tmp = new half[row * col];
-        cudaMemcpy(tmp, matrix, sizeof(half) * row * col, cudaMemcpyDeviceToHost);
+        CHECK_CUDA(cudaMemcpy(tmp, matrix, sizeof(half) * row * col, cudaMemcpyDeviceToHost));
         for (int i = 0; i < row; i++) {
             for (int j = 0; j < col; j++) {
                 printf("%.2f ", __half2float(tmp[i * col + j]));
             }
             printf("\n");
         }
+        delete[] tmp;
     } else {
         for (int i = 0; i < row; i++) {
             for (int j = 0; j < col; j++) {

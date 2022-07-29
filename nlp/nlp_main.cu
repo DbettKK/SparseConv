@@ -190,7 +190,7 @@ void test_mask() {
     cudaMemcpy(dV, V, sizeof(half) * sen * ebd / h, cudaMemcpyHostToDevice);
     cudaMemcpy(dM, masks, sizeof(int) * sen * sen, cudaMemcpyHostToDevice);
 
-    bool doMask = false;
+    bool doMask = true;
 
     half *out = new half[sen * ebd / h];
     for (int i = 0; i < 10; i++) {
@@ -199,8 +199,8 @@ void test_mask() {
 
         if (doMask) {
             mask_matrix_gpu<<<16, 32>>>(dAtt, dM, sen, sen);
-            sparse_mma_gemm_device(dAtt, dV, sen, sen, ebd / h, true, out);
-            //cusparse_gemm_csr_device(dAtt, dV, sen, sen, ebd / h, out);
+            //sparse_mma_gemm_device(dAtt, dV, sen, sen, ebd / h, true, out);
+            cusparse_gemm_csr_device(dAtt, dV, sen, sen, ebd / h, out);
         } else {
             cublas_gemm_device(dAtt, dV, sen, sen, ebd / h, out);
         }
@@ -217,21 +217,22 @@ void test_mask() {
 }
 
 int main() {
-
-    test_mask();
-    return 0;
     auto a = new Attention();
     a->initW();
 
 
     auto mh = new MatrixHalf(1, 16, 512, true, 1);
+    //
     //mh->print("input:", true);
-    for (int i = 0; i < 12; i++) {
+    for (int i = 0; i < 1; i++) {
         //auto t = new CudaTime();
         //t->initAndStart();
-        //a->forward(mh);
+        auto tmp_out = new MatrixHalf(1, 16, 512, true);
+        a->forward(mh, tmp_out);
+        mh = tmp_out;
+        //mh->print("====", true);
         //cusparse_gemm_blocked_device_test();
-        cusparse_gemm_csr_device_test();
+        //cusparse_gemm_csr_device_test();
         //printf("time: %fms\n", t->endAndGetTime());
     }
 

@@ -16,7 +16,7 @@ class Attention {
     int embedding = 512;
     int d_ff = 2048, d_model = 512;
 public:
-    void forward(MatrixHalf *input);
+    void forward(MatrixHalf *input, MatrixHalf *output);
 
     void initW();
 };

@@ -24,7 +24,7 @@ __global__ void reshape_multi_head(half *A, half *B, const int row, const int co
 {
     const int thx = threadIdx.x, thy = threadIdx.y;
     const int bld = blockIdx.x;
-    B[bld * row + thx * row + thy] = A[thx * row + bld * col + thy];
+    B[(bld * row + thx) * col / heads + thy] = A[thx * col + (bld * col / heads + thy)];
 }
 
 __global__ void transpose_half(half *item, half *out, int row, int col) {
@@ -85,8 +85,15 @@ void cublas_gemm_device(const half *d_A, const half *d_B, int inputM, int inputK
     /* step 3: compute */
     CHECK_CUBLAS( cublasHgemm(cublasH, transa, transb, m, n, k, &alpha, d_A, lda, d_B, ldb, &beta, d_C, ldc) );
 
+    // transpose
+    half *d_C_T;
+    cudaMalloc(&d_C_T, sizeof(half) * m * n);
+    dim3 grid(m, n);
+    dim3 block(32, 32);
+    transpose_half<<<grid, block>>>(d_C, d_C_T, m, n);
+
     /* step 4: copy data to host */
-    CHECK_CUDA( cudaMemcpyAsync(output, d_C, sizeof(half) * m * n, cudaMemcpyDeviceToHost, stream));
+    CHECK_CUDA( cudaMemcpyAsync(output, d_C_T, sizeof(half) * m * n, cudaMemcpyDeviceToHost, stream));
 
     CHECK_CUDA( cudaStreamSynchronize(stream) );
 
@@ -126,17 +133,20 @@ void sparse_mma_gemm_device(const half *inputA, const half *inputB, int inputM, 
     half *dA, *dB, *dC, *dD, *dA_compressed;
     int *d_valid;
     int *is_valid = (int *)malloc(sizeof(int));
-    CHECK_CUDA(cudaMalloc((void **) &dA, A_size))
-    CHECK_CUDA(cudaMalloc((void **) &dB, B_size))
+
     CHECK_CUDA(cudaMalloc((void **) &dC, C_size))
     CHECK_CUDA(cudaMalloc((void **) &d_valid, sizeof(d_valid)))
     CHECK_CUDA(cudaMemset(dC, 0, C_size))
     dD = dC;
 
+    //auto ttt = new CudaTime();
+    //ttt->initAndStart();
+    CHECK_CUDA(cudaMalloc((void **) &dA, A_size))
+    CHECK_CUDA(cudaMalloc((void **) &dB, B_size))
     // padding to match mma.sp
     padCudaMemcpy2D(inputA, inputM, inputK, dA, m, k);
     padCudaMemcpy2D(inputB, inputK, inputN, dB, k, n);
-
+    //printf("pad time: %fms\t", ttt->endAndGetTime());
     // Leading dimension 如果行优先则代表列数
     int lda = k, ldb = n, ldc = n;
     auto opA = CUSPARSE_OPERATION_NON_TRANSPOSE;
