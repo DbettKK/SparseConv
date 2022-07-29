@@ -37,7 +37,6 @@ void Attention::forward(MatrixHalf *input, MatrixHalf *output) {
         auto tmp_ans = new MatrixHalf(1, sen, sen, true);
         cublas_gemm_device(outQ->getMatrix() + i * each_block, transK->getMatrix(),
                            sen, ebd / heads, sen, tmp_ans->getMatrix());
-        tmp_ans->print("tmp_ans:", true);
         tmp_ans->softmax();
         // 3. 和V再次矩阵乘
         cublas_gemm_device(tmp_ans->getMatrix(), outV->getMatrix() + i * each_block,
@@ -49,6 +48,7 @@ void Attention::forward(MatrixHalf *input, MatrixHalf *output) {
     // 3. 运算结果concat并和 W0 运算得到输出
     auto attention_out = new MatrixHalf(1, sen, ebd, true);
     concat->gemm(this->W0, attention_out);
+    concat->print("concat:", true);
     // 4. 输出通过mlp层 两次矩阵乘得到最终输出
     auto out_ff = new MatrixHalf(1, sen, d_ff, true);
     //auto out_model = new MatrixHalf(1, sen, d_model, true);

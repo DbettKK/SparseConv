@@ -12,11 +12,15 @@ __global__ void softmax_half(half *item, const int row, const int col) {
     }
     __syncthreads();
     if (thx < row && blx < col) {
+        half max = -65504;
+        for (int i = 0; i < row; i++) {
+            if (max <= mem[i][blx]) max = mem[i][blx];
+        }
         double sum = 0;
         for (int i = 0; i < row; i++) {
-            sum += expf(mem[i][blx]);
+            sum += expf(mem[i][blx] - max);
         }
-        item[thx * col + blx] = expf(mem[thx][blx]) / sum;
+        item[thx * col + blx] = expf(mem[thx][blx] - max) / sum;
     }
 }
 
