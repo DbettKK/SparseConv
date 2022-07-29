@@ -14,7 +14,6 @@ void Attention::forward(MatrixHalf *input, MatrixHalf *output) {
     input->gemm(this->Wq, Q);
     input->gemm(this->Wk, K);
     input->gemm(this->Wv, V);
-    Q->print("outQ:", true);
     // 2. Q K V多头机制下分别进行运算
     // 多头机制计算本质是reshape    outQ: [batch, heads, sen, ebd / heads]
     auto outQ = new MatrixHalf(1, sen * heads, ebd / heads, true);
@@ -23,7 +22,9 @@ void Attention::forward(MatrixHalf *input, MatrixHalf *output) {
     Q->reshape(outQ, this->heads);
     K->reshape(outK, this->heads);
     V->reshape(outV, this->heads);
-    //Q->print("outQ:", true);
+    Q->free_matrix();
+    K->free_matrix();
+    V->free_matrix();
     // softmax(QK^T)V
     auto concat = new MatrixHalf(1, sen, ebd, true);
     for (int i = 0; i < heads; i++) {
@@ -36,10 +37,14 @@ void Attention::forward(MatrixHalf *input, MatrixHalf *output) {
         auto tmp_ans = new MatrixHalf(1, sen, sen, true);
         cublas_gemm_device(outQ->getMatrix() + i * each_block, transK->getMatrix(),
                            sen, ebd / heads, sen, tmp_ans->getMatrix());
+        tmp_ans->print("tmp_ans:", true);
         tmp_ans->softmax();
         // 3. 和V再次矩阵乘
         cublas_gemm_device(tmp_ans->getMatrix(), outV->getMatrix() + i * each_block,
                            sen, sen, ebd / heads, concat->getMatrix() + i * each_block);
+        // 4. cuda free
+        transK->free_matrix();
+        tmp_ans->free_matrix();
     }
     // 3. 运算结果concat并和 W0 运算得到输出
     auto attention_out = new MatrixHalf(1, sen, ebd, true);
@@ -49,14 +54,18 @@ void Attention::forward(MatrixHalf *input, MatrixHalf *output) {
     //auto out_model = new MatrixHalf(1, sen, d_model, true);
     attention_out->gemm(this->Wff, out_ff);
     out_ff->gemm(this->Wm, output);
+
+    concat->free_matrix();
+    attention_out->free_matrix();
+    out_ff->free_matrix();
 }
 
 void Attention::initW() {
-    Wq = new MatrixHalf(1, embedding, embedding, true, 1);
-    Wk = new MatrixHalf(1, embedding, embedding, true, 1);
-    Wv = new MatrixHalf(1, embedding, embedding, true, 1);
-    W0 = new MatrixHalf(1, embedding, embedding, true, 1);
-    Wff = new MatrixHalf(1, embedding, d_ff, true, 1);
-    Wm = new MatrixHalf(1, d_ff, d_model, true, 1);
+    Wq = new MatrixHalf(1, embedding, embedding, true, 0.05);
+    Wk = new MatrixHalf(1, embedding, embedding, true, 0.05);
+    Wv = new MatrixHalf(1, embedding, embedding, true, 0.05);
+    W0 = new MatrixHalf(1, embedding, embedding, true, 0.05);
+    Wff = new MatrixHalf(1, embedding, d_ff, true, 0.05);
+    Wm = new MatrixHalf(1, d_ff, d_model, true, 0.05);
 }
 

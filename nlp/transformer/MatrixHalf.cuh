@@ -49,6 +49,8 @@ public:
     void transpose(MatrixHalf *out);
 
     void softmax();
+
+    void free_matrix();
 };
 
 

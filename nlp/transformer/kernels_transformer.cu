@@ -56,7 +56,7 @@ __global__ void mask_matrix_gpu(half *tgt, const int *mask_mat, int row, int col
 void cublas_gemm_device(const half *d_A, const half *d_B, int inputM, int inputK, int inputN, half *output) {
     // 因为为列存储，为了方便，设置转置
     cublasHandle_t cublasH = nullptr;
-    cudaStream_t stream = nullptr;
+    //cudaStream_t stream = nullptr;
 
     const int m = inputM;
     const int n = inputN;
@@ -76,8 +76,8 @@ void cublas_gemm_device(const half *d_A, const half *d_B, int inputM, int inputK
     /* step 1: create cublas handle, bind a stream */
     CHECK_CUBLAS( cublasCreate(&cublasH) );
 
-    CHECK_CUDA( cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking) );
-    CHECK_CUBLAS( cublasSetStream(cublasH, stream) );
+    //CHECK_CUDA( cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking) );
+    //CHECK_CUBLAS( cublasSetStream(cublasH, stream) );
 
     /* step 2: copy data to device */
     CHECK_CUDA( cudaMalloc(&d_C, sizeof(half) * m * n) );
@@ -86,25 +86,24 @@ void cublas_gemm_device(const half *d_A, const half *d_B, int inputM, int inputK
     CHECK_CUBLAS( cublasHgemm(cublasH, transa, transb, m, n, k, &alpha, d_A, lda, d_B, ldb, &beta, d_C, ldc) );
 
     // transpose
-    half *d_C_T;
-    cudaMalloc(&d_C_T, sizeof(half) * m * n);
-    dim3 grid(m, n);
+    dim3 grid(m / 32 + 1, n / 32 + 1);
     dim3 block(32, 32);
-    transpose_half<<<grid, block>>>(d_C, d_C_T, m, n);
+    transpose_half<<<grid, block>>>(d_C, output, m, n);
 
     /* step 4: copy data to host */
-    CHECK_CUDA( cudaMemcpyAsync(output, d_C_T, sizeof(half) * m * n, cudaMemcpyDeviceToHost, stream));
+    //CHECK_CUDA( cudaMemcpyAsync(output, d_C, sizeof(half) * m * n, cudaMemcpyDeviceToDevice, stream));
 
-    CHECK_CUDA( cudaStreamSynchronize(stream) );
+    //CHECK_CUDA( cudaStreamSynchronize(stream) );
 
     /* free resources */
     //CHECK_CUDA( cudaFree(d_A) );
     //CHECK_CUDA( cudaFree(d_B) );
     CHECK_CUDA( cudaFree(d_C) );
+    // CHECK_CUDA( cudaFree(d_C_T) );
 
     CHECK_CUBLAS( cublasDestroy(cublasH) );
 
-    CHECK_CUDA( cudaStreamDestroy(stream) );
+    //CHECK_CUDA( cudaStreamDestroy(stream) );
 
     //CHECK_CUDA( cudaDeviceReset() );
 }

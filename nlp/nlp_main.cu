@@ -216,12 +216,23 @@ void test_mask() {
     }
 }
 
+void test_gemm() {
+    auto A = new MatrixHalf(1, 16, 512, true, 1);
+    auto B = new MatrixHalf(1, 512, 512, true, 1);
+    auto ans = new MatrixHalf(1, 16, 512, true);
+    auto outA = new MatrixHalf(1, 16 * 8, 64, true);
+    A->gemm(B, ans);
+    ans->reshape(outA, 8);
+    ans->print("ans: ", true);
+    outA->print("outA: ", true);
+}
+
 int main() {
     auto a = new Attention();
     a->initW();
 
 
-    auto mh = new MatrixHalf(1, 16, 512, true, 1);
+    auto mh = new MatrixHalf(1, 16, 512, true, 0.05);
     //
     //mh->print("input:", true);
     for (int i = 0; i < 1; i++) {

@@ -104,5 +104,9 @@ void MatrixHalf::print(const std::string& msg, bool is_device) {
 
 }
 
+void MatrixHalf::free_matrix() {
+    CHECK_CUDA(cudaFree(matrix))
+}
+
 
 
