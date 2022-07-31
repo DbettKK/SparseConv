@@ -8,6 +8,14 @@ import math
 
 from torch.autograd import Variable
 
+# 优化器
+from pyitcast.transformer_utils import get_std_opt
+# 标签平滑
+from pyitcast.transformer_utils import LabelSmoothing
+# 损失计算
+from pyitcast.transformer_utils import SimpleLossCompute
+from pyitcast.transformer_utils import run_epoch
+from pyitcast.transformer_utils import Batch
 
 def subsequent_mask(size):
     attn_shape = (1, size, size)
@@ -198,6 +206,7 @@ class LayerNorm(nn.Module):
 
 class SublayerConnection(nn.Module):
     """ 子层连接结构/残差连接 """
+
     def __init__(self, size, dropout=0.1):
         """size一般为词嵌入的维度"""
         super(SublayerConnection, self).__init__()
@@ -345,7 +354,7 @@ class Generator(nn.Module):
 
 
 class EncoderDecoder(nn.Module):
-    def __init__(self, encoder, decoder, source_ebd, target_ebd, generator):
+    def __init__(self, encoder, decoder, src_embed, target_ebd, generator):
         """
         :param encoder: 编码器对象
         :param decoder: 解码器对象
@@ -357,7 +366,7 @@ class EncoderDecoder(nn.Module):
         # 传参
         self.encoder = encoder
         self.decoder = decoder
-        self.source_ebd = source_ebd
+        self.src_embed = src_embed
         self.target_ebd = target_ebd
         self.generator = generator
 
@@ -372,30 +381,107 @@ class EncoderDecoder(nn.Module):
         return self.decode(self.encode(source, source_mask), source_mask, target, target_mask)
 
     def encode(self, source, source_mask):
-        return self.encoder(self.source_ebd(source), source_mask)
+        return self.encoder(self.src_embed(source), source_mask)
 
     def decode(self, memory, source_mask, target, target_mask):
         return self.decoder(self.target_ebd(target), memory, source_mask, target_mask)
 
 
-def make_model():
-    pass
+def make_model(source_vocab=11, target_vocab=11, N=6, d_model=512, d_ff=2048, head=8, dropout=0.1):
+    """
+    :param source_vocab: 源数据特征总数
+    :param target_vocab: 目标数据特征总数
+    :param N: 解码器和编码器堆叠次数
+    :param d_model: 词嵌入维度
+    :param d_ff: mlp矩阵变换维度
+    :param head: 多头注意力层的多头数
+    :param dropout: 置零比例
+    """
+    # 准备一个深拷贝
+    c = copy.deepcopy
+
+    # 实例化多头注意力对象
+    attn = MultiHeadedAttention(head, d_model, dropout)
+
+    # 实例化mlp对象
+    mlp = FeedForward(d_model, d_ff, dropout)
+
+    # 实例化位置编码对象
+    pe = PositionalEncoding(d_model, dropout)
+
+    # 堆叠模型
+    # nn.Sequential 将两个层合为一个
+    model = EncoderDecoder(
+        Encoder(EncoderLayer(d_model, c(attn), c(mlp), dropout), N),
+        Decoder(DecoderLayer(d_model, c(attn), c(attn), c(mlp), dropout), N),
+        nn.Sequential(Embedding(d_model, source_vocab), c(pe)),
+        nn.Sequential(Embedding(d_model, target_vocab), c(pe)),
+        Generator(d_model, target_vocab)
+    )
+
+    # 初始化模型参数
+    # 如果参数维度大于1 就会初始化为一个服从均匀分布的矩阵 如线性层中的变换矩阵
+    for p in model.parameters():
+        if p.dim() > 1:
+            nn.init.xavier_uniform_(p)
+
+    return model
 
 
-# if __name__ == '__main__':
-#     emd = 512
-#     head = 8
-#     d_model = 512
-#     d_ff = 2048
-#     attn = MultiHeadedAttention(head, emd)
-#     mlp = FeedForward(d_model, d_ff)
-#     dropout = 0.2
-#     layer = EncoderLayer(emd, attn, mlp, dropout)
-#     N = 6
-#     # mask = Variable(torch.zeros(8, 4, 4))
-#
-#     en = Encoder(layer, N)
-#     x = Variable(torch.randn(1, 16, 512))
-#     en_result = en(x, None)
-#     print(en_result)
-#     print(en_result.shape)
+def data_generator(V, batch, num_batch):
+    """
+    :param V: 随机生成数字的最大值+1
+    :param batch: 每次输入的数据量
+    :param num_batch: 输入的次数
+    """
+    for i in range(num_batch):
+        # 随机整数[1, V)
+        data = torch.from_numpy(np.random.randint(1, V, size=(batch, 10)))
+
+        # 矩阵第一列设置为1 作为起始标志列 即start
+        data[:, 0] = 1
+
+        # copy任务 source和target一致 且样本变量不需要求梯度
+        source = Variable(data, requires_grad=False)
+        target = Variable(data, requires_grad=False)
+
+        # 使用Batch对src和tgt进行对应的掩码张量生成 用yield返回
+        yield Batch(source, target)
+
+
+def run(model, loss, epochs=10):
+    for epoch in range(epochs):
+        # 训练模式
+        model.train()
+        # batch 20
+        run_epoch(data_generator(10, 8, 20), model, loss)
+        # 评估模式
+        model.eval()
+        # batch 5
+        run_epoch(data_generator(10, 8, 5), model, loss)
+
+
+if __name__ == '__main__':
+    md = make_model()
+    model_opt = get_std_opt(md)
+    criterion = LabelSmoothing(size=10, padding_idx=0, smoothing=0.0)
+    loss = SimpleLossCompute(md.generator, criterion, model_opt)
+
+    run(md, loss)
+
+    # emd = 512
+    # head = 8
+    # d_model = 512
+    # d_ff = 2048
+    # attn = MultiHeadedAttention(head, emd)
+    # mlp = FeedForward(d_model, d_ff)
+    # dropout = 0.2
+    # layer = EncoderLayer(emd, attn, mlp, dropout)
+    # N = 6
+    # # mask = Variable(torch.zeros(8, 4, 4))
+    #
+    # en = Encoder(layer, N)
+    # x = Variable(torch.randn(1, 16, 512))
+    # en_result = en(x, None)
+    # print(en_result)
+    # print(en_result.shape)
