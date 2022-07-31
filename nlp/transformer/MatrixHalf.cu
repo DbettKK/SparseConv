@@ -56,6 +56,10 @@ void MatrixHalf::setCol(int col) {
 }
 
 void MatrixHalf::gemm(MatrixHalf *item, MatrixHalf *out) {
+    if (this->batch != out->getBatch()) {
+        printf("source batch_size should be equaled to the target batch_size!");
+        return;
+    }
     cublas_gemm_device(this->matrix, item->matrix, this->row, this->col, item->col, out->matrix);
     //sparse_mma_gemm_device(this->matrix, item->matrix, this->row, this->col, item->col, true, out->matrix);
     //dim3 grid(16, 16);
@@ -106,6 +110,33 @@ void MatrixHalf::print(const std::string& msg, bool is_device) {
 
 void MatrixHalf::free_matrix() {
     CHECK_CUDA(cudaFree(matrix))
+}
+
+ void MatrixHalf::print_device(half *item, int row, int col) {
+    // std::cout << msg << std::endl;
+    half *tmp = new half[row * col];
+    CHECK_CUDA(cudaMemcpy(tmp, item, sizeof(half) * row * col, cudaMemcpyDeviceToHost));
+    for (int i = 0; i < row; i++) {
+        for (int j = 0; j < col; j++) {
+            printf("%.2f ", __half2float(tmp[i * col + j]));
+        }
+        printf("\n");
+    }
+    delete[] tmp;
+}
+
+void MatrixHalf::relu() {
+    dim3 grid(row / 32 + 1, col / 32 + 1);
+    dim3 block(32, 32);
+    relu_half<<<grid, block>>>(matrix, row, col);
+}
+
+void MatrixHalf::addMatrix(MatrixHalf *add, MatrixHalf *out) {
+    if (this->row != add->row || this->col != add->col) {
+        printf("Error: matrix add need to be the same shape!\n");
+        return;
+    }
+    matrix_add<<<batch, row * col>>>(matrix, add->matrix, out->matrix, batch * row * col);
 }
 
 

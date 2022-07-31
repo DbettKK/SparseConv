@@ -25,6 +25,10 @@ __global__ void gemm_simple(half *A, half *B, int m, int k, int n, half *out);
 
 __global__ void mask_matrix_gpu(half *tgt, const int *mask_mat, int row, int col);
 
+__global__ void relu_half(half *item, int row, int col);
+
+__global__ void matrix_add(half *A, half *B, half *C, int size);
+
 /* 得到的 output 为转置后的 */
 void cublas_gemm_device(const half *d_A, const half *d_B, int inputM, int inputK, int inputN, half *output);
 

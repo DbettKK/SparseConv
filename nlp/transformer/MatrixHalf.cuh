@@ -16,6 +16,8 @@ class MatrixHalf {
     int batch{}, row{}, col{};
 
 public:
+    static void print_device(half *item, int row, int col);
+
     MatrixHalf(int batch, int row, int col, bool is_device);
 
     MatrixHalf(int batch, int row, int col, bool is_device, half init);
@@ -49,6 +51,10 @@ public:
     void transpose(MatrixHalf *out);
 
     void softmax();
+
+    void relu();
+
+    void addMatrix(MatrixHalf *add, MatrixHalf *out);
 
     void free_matrix();
 };

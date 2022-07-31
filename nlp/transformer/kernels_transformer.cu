@@ -57,6 +57,23 @@ __global__ void mask_matrix_gpu(half *tgt, const int *mask_mat, int row, int col
     }
 }
 
+__global__ void relu_half(half *item, int row, int col) {
+    int nx = threadIdx.x + blockDim.x * blockIdx.x;
+    int ny = threadIdx.y + blockDim.y * blockIdx.y;
+    if (nx < row && ny < col) {
+        if (item[nx * col + ny] <= __float2half(0))
+            item[nx * col + ny] = 0;
+    }
+}
+
+__global__ void matrix_add(half *A, half *B, half *C, int size) {
+    int idx = threadIdx.x + blockDim.x * blockIdx.x;
+    if (idx < size) {
+        C[idx] = A[idx] +B[idx];
+    }
+}
+
+
 void cublas_gemm_device(const half *d_A, const half *d_B, int inputM, int inputK, int inputN, half *output) {
     // 因为为列存储，为了方便，设置转置
     cublasHandle_t cublasH = nullptr;
