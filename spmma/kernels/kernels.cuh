@@ -5,6 +5,16 @@
 #ifndef SPARSECONVOLUTION_KERNELS_CUH
 #define SPARSECONVOLUTION_KERNELS_CUH
 
+#define CHECK_CUDA(func)                                                       \
+{                                                                              \
+    cudaError_t status = (func);                                               \
+    if (status != cudaSuccess) {                                               \
+        printf("CUDA API failed at %s line %d with error: %s (%d)\n",          \
+               __FILE__, __LINE__, cudaGetErrorString(status), status);        \
+        return;                                                                \
+    }                                                                          \
+}
+
 // CUDA: grid stride looping
 #define CUDA_KERNEL_LOOP(i, n)  for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < (n);  i += blockDim.x * gridDim.x)
 

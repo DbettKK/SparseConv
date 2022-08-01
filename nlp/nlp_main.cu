@@ -231,7 +231,6 @@ int main() {
     auto a = new Attention();
     a->initW();
 
-
     auto mh = new MatrixHalf(1, 16, 512, true, 0.05);
     //
     //mh->print("input:", true);
