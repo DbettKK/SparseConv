@@ -15,6 +15,8 @@ class MyTensor {
 public:
     MyTensor(int batch, int channel, int width, int height, bool is_device);
 
+    MyTensor(int batch, int channel, int width, int height, bool is_device, half init);
+
     MyTensor* copyTo();
 
     void copy(MyTensor *out);
@@ -22,6 +24,8 @@ public:
     static void print_half(half *item, int batch, int channel, int width, int height);
 
     static void print_half_device(half *item, int batch, int channel, int width, int height);
+
+    void print(bool is_device);
 
     static void cmp_half(half *item1, half *item2, int batch, int channel, int width, int height, bool is_device);
 

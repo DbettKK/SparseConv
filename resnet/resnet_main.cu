@@ -4,6 +4,7 @@
 
 #include"interface/interfaces.cuh"
 #include "net/entity/MyTensor.cuh"
+#include "net/MyResNet.cuh"
 
 void test_conv2d() {
     int batch = 4, in_c = 3, f_w = 16, f_h = 16;
@@ -43,7 +44,12 @@ void test_conv2d() {
 }
 
 
+void test_resnet() {
+    auto mr = new MyResNet();
+    mr->resnet50();
+}
+
 int main() {
-    test_conv2d();
+    test_resnet();
     return 0;
 }

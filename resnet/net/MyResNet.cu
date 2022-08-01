@@ -5,7 +5,7 @@
 #include "MyResNet.cuh"
 
 void MyResNet::resnet50() {
-    auto input = new MyTensor(1, 3, 224, 224, true);
+    auto input = new MyTensor(1, 3, 224, 224, true, 1);
     // 1. conv1
     auto conv1_out = new MyTensor(1, 64, 112, 112, true);
     input->conv2d(1, 64, 7, 7, 2, 3, conv1_out);
@@ -70,7 +70,7 @@ void MyResNet::resnet50() {
     conv5_out3->avgpool(avg_out);
     conv5_out3->free_tensor();
     // liner 2048, 1000
-
+    avg_out->print(true);
 }
 
 void MyResNet::bottleneck1(MyTensor *input, MyTensor *output, int times) {
@@ -97,7 +97,7 @@ void MyResNet::bottleneck1(MyTensor *input, MyTensor *output, int times) {
     bn3_out->addTensor(input, add_out);
 
     MyTensor *relu3_out = new MyTensor(1, 256, 56, 56, true);
-    add_out->relu(relu4_out);
+    add_out->relu(relu3_out);
 
     relu3_out->copy(output);
 
@@ -142,7 +142,7 @@ void MyResNet::bottleneck2(MyTensor *input, MyTensor *output, int times) {
     bn3_out->addTensor(downsample, add_out);
 
     MyTensor *relu3_out = new MyTensor(1, 512, 28, 28, true);
-    add_out->relu(relu4_out);
+    add_out->relu(relu3_out);
 
     relu3_out->copy(output);
 
@@ -188,7 +188,7 @@ void MyResNet::bottleneck3(MyTensor *input, MyTensor *output, int times) {
     bn3_out->addTensor(downsample, add_out);
 
     MyTensor *relu3_out = new MyTensor(1, 1024, 14, 14, true);
-    add_out->relu(relu4_out);
+    add_out->relu(relu3_out);
 
     relu3_out->copy(output);
 
@@ -234,7 +234,7 @@ void MyResNet::bottleneck4(MyTensor *input, MyTensor *output, int times) {
     bn3_out->addTensor(downsample, add_out);
 
     MyTensor *relu3_out = new MyTensor(1, 2048, 7, 7, true);
-    add_out->relu(relu4_out);
+    add_out->relu(relu3_out);
 
     relu3_out->copy(output);
 

@@ -10,8 +10,6 @@
 
 class MyResNet {
 
-    void resnet50();
-
     void bottleneck1(MyTensor *input, MyTensor *output, int times);
 
     void bottleneck2(MyTensor *input, MyTensor *output, int times);
@@ -19,6 +17,9 @@ class MyResNet {
     void bottleneck3(MyTensor *input, MyTensor *output, int times);
 
     void bottleneck4(MyTensor *input, MyTensor *output, int times);
+
+public:
+    void resnet50();
 };
 
 
