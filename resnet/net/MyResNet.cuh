@@ -12,7 +12,13 @@ class MyResNet {
 
     void resnet50();
 
-    void bottleneck(int in_c, int out_c, int stride);
+    void bottleneck1(MyTensor *input, MyTensor *output, int times);
+
+    void bottleneck2(MyTensor *input, MyTensor *output, int times);
+
+    void bottleneck3(MyTensor *input, MyTensor *output, int times);
+
+    void bottleneck4(MyTensor *input, MyTensor *output, int times);
 };
 
 

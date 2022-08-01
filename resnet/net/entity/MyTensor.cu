@@ -48,7 +48,7 @@ int MyTensor::getSize() {
     return batch * channel * height * width;
 }
 
-void MyTensor::batchNorm(MyTensor *out) {
+void MyTensor::batchNorm(int out_c, MyTensor *out) {
 
 }
 
@@ -158,4 +158,15 @@ void MyTensor::copy(MyTensor *out) {
     cudaMemcpy(out->getTensor(), tensor, sizeof(half) * getSize(), cudaMemcpyDeviceToDevice);
 }
 
+void MyTensor::addTensor(MyTensor *add, MyTensor *out) {
+    this->copy(out);
+}
+
+void MyTensor::free_tensor() {
+    CHECK_CUDA(cudaFree(tensor))
+}
+
+void MyTensor::avgpool(MyTensor *out) {
+    this->copy(out);
+}
 

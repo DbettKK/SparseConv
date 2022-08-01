@@ -47,7 +47,7 @@ public:
 
     int getSize();
 
-    void batchNorm(MyTensor *out);
+    void batchNorm(int out_c, MyTensor *out);
 
     void relu(MyTensor *out);
 
@@ -55,7 +55,13 @@ public:
 
     void maxpool(int kernel_size, int stride, int padding, MyTensor *out);
 
+    void avgpool(MyTensor *out);
+
+    void addTensor(MyTensor *add, MyTensor *out);
+
     void conv2d(int conv_num, int out_channel, int kernel_w, int kernel_h, int stride, int padding, MyTensor *out);
+
+    void free_tensor();
 };
 
 
