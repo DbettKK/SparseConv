@@ -6,7 +6,7 @@
 
 void Encoder::forward(MatrixHalf *input, MatrixHalf *output) {
     auto attn_out = new MatrixHalf(input->getBatch(), input->getRow(), input->getCol(), true);
-    attn->forward(input, attn_out);
+    attn->forward(input, input, input, attn_out);
     mlp->forward(attn_out, output);
     attn_out->free_matrix();
 }

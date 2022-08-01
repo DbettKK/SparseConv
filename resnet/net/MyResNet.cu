@@ -9,6 +9,7 @@ void MyResNet::resnet50() {
     // 1. conv1
     auto conv1_out = new MyTensor(1, 64, 112, 112, true);
     input->conv2d(1, 64, 7, 7, 2, 3, conv1_out);
+    //conv1_out->print(true);
     // 2. maxpool
     auto maxpool_out = new MyTensor(1, 64, 56, 56, true);
     conv1_out->maxpool(3, 2, 1, maxpool_out);

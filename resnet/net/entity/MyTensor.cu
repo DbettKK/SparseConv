@@ -137,7 +137,9 @@ MyTensor::MyTensor(int batch, int channel, int width, int height, bool is_device
 void
 MyTensor::conv2d(int conv_num, int out_channel, int kernel_w, int kernel_h, int stride, int padding, MyTensor *out) {
     MyTensor *kernel = getKernel(conv_num, out_channel, this->getChannel(), kernel_w, kernel_h);
-    conv2d_device_cudnn(this->tensor, kernel->tensor, batch, channel, kernel->batch, width, height, kernel->width,
+//    conv2d_device_cudnn(this->tensor, kernel->tensor, batch, channel, kernel->batch, width, height, kernel->width,
+//                        kernel->height, stride, padding, out->getTensor());
+    conv2d_device_spmma(this->tensor, kernel->tensor, batch, channel, kernel->batch, width, height, kernel->width,
                         kernel->height, stride, padding, out->getTensor());
 }
 
