@@ -24,6 +24,8 @@ public:
 
     MatrixHalf(half *matrix, int batch, int row, int col);
 
+    void copyTo(MatrixHalf *out);
+
     half *getMatrix() const;
 
     void setMatrix(half *matrix);
@@ -45,6 +47,8 @@ public:
     void print(const std::string& msg, bool is_device);
 
     void gemm(MatrixHalf *item, MatrixHalf *out);
+
+    void gemm_batches(MatrixHalf *item, MatrixHalf *out);
 
     void reshape(MatrixHalf *out, int heads) const;
 

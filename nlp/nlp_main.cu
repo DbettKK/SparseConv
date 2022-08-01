@@ -144,6 +144,7 @@
 
 #include "./transformer/Attention.cuh"
 #include "../spmma/utils/CudaTime.cuh"
+#include "transformer/Transformer.cuh"
 
 float generate_random() {
     std::random_device sd; // sd可以产生一个质量很高的随机数
@@ -228,6 +229,9 @@ void test_gemm() {
 }
 
 int main() {
+    Transformer *t = new Transformer();
+    t->make_mask1(10, nullptr);
+    return 0;
     auto a = new Attention();
     a->initW();
 
@@ -238,7 +242,7 @@ int main() {
         //auto t = new CudaTime();
         //t->initAndStart();
         auto tmp_out = new MatrixHalf(1, 16, 512, true);
-        a->forward(mh, tmp_out);
+        //a->forward(mh, tmp_out);
         mh = tmp_out;
         //mh->print("====", true);
         //cusparse_gemm_blocked_device_test();

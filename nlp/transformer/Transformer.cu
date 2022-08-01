@@ -37,3 +37,24 @@ void Transformer::init(int max_len, int d_model) {
     pe = new MatrixHalf(1, max_len, d_model, true);
     make_pe(max_len, d_model, pe);
 }
+
+void Transformer::make_mask1(int max_len, MatrixHalf *out) {
+    // 从主对角线开始 隔两个对角线的值不mask
+    half *h_mask = new half[max_len * max_len];
+    memset(h_mask, 0, sizeof(half) * max_len * max_len);
+    int max_num = (max_len - 1) / 3;
+    for (int i = 0; i < max_len; i++) {
+        for (int j = 0; j < max_len; j++) {
+            for (int k = 0; k <= max_num; k++) {
+                if (i == j + k * 3) h_mask[i * max_len + j] = 1;
+                if (j == i + k * 3) h_mask[i * max_len + j] = 1;
+            }
+        }
+    }
+    for (int i = 0; i < max_len; i++) {
+        for (int j = 0; j < max_len; j++) {
+            printf("%d ", __half2int_rz(h_mask[i * max_len + j]));
+        }
+        printf("\n");
+    }
+}

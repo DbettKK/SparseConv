@@ -67,6 +67,13 @@ void MatrixHalf::gemm(MatrixHalf *item, MatrixHalf *out) {
     //gemm_simple<<<grid, block>>>(this->matrix, item->matrix, row, col, item->col, out->matrix);
 }
 
+void MatrixHalf::gemm_batches(MatrixHalf *item, MatrixHalf *out) {
+    for (int i = 0; i < batch; i++) {
+        cublas_gemm_device(matrix + i * row * col, item->matrix + i * item->row * item->col,
+                           row, col, item->col, out->matrix + i * out->row * out->col);
+    }
+}
+
 int MatrixHalf::getSize() const {
     return this->batch * this->col * this->row;
 }
@@ -137,6 +144,10 @@ void MatrixHalf::addMatrix(MatrixHalf *add, MatrixHalf *out) {
         return;
     }
     matrix_add<<<batch, row * col>>>(matrix, add->matrix, out->matrix, batch * row * col);
+}
+
+void MatrixHalf::copyTo(MatrixHalf *out) {
+    cudaMemcpy(out->getMatrix(), matrix, sizeof(half) * out->getSize(), cudaMemcpyDeviceToDevice);
 }
 
 

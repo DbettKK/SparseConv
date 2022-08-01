@@ -17,6 +17,8 @@ public:
 
     static void make_pe(int max_len, int d_model, MatrixHalf *out);
 
+    static void make_mask1(int max_len, MatrixHalf *out);
+
     void init(int max_len, int d_model);
 };
 
