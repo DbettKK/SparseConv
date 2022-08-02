@@ -27,8 +27,8 @@ __global__ void softmax_half(half *item, const int row, const int col) {
 __global__ void reshape_multi_head(half *A, half *B, const int row, const int col, const int heads)
 {
     const int thx = threadIdx.x, thy = threadIdx.y;
-    const int bld = blockIdx.x;
-    B[(bld * row + thx) * col / heads + thy] = A[thx * col + (bld * col / heads + thy)];
+    const int blx = blockIdx.x, bly = blockIdx.y;
+    B[blx * row * col + (bly * row + thx) * col / heads + thy] = A[blx * row * col + thx * col + (bly * col / heads + thy)];
 }
 
 __global__ void transpose_half(half *item, half *out, int row, int col) {

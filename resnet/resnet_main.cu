@@ -49,7 +49,17 @@ void test_resnet() {
     mr->resnet50();
 }
 
+void test_bn() {
+    MyTensor *t = new MyTensor(2, 2, 4, 4, false, 1);
+    for (int i = 0; i < 64; i++) t->getTensor()[i] = i;
+    half *dd;
+    cudaMalloc(&dd, sizeof(half) * 64);
+    cudaMemcpy(dd, t->getTensor(), sizeof(half) * 64, cudaMemcpyHostToDevice);
+    t->setTensor(dd);
+    t->batchNorm(1, nullptr);
+}
+
 int main() {
-    test_resnet();
+    test_bn();
     return 0;
 }

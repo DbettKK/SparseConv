@@ -48,7 +48,7 @@ public:
 
     void gemm(MatrixHalf *item, MatrixHalf *out);
 
-    void gemm_batches(MatrixHalf *item, MatrixHalf *out);
+    void gemm_batches(MatrixHalf *item, MatrixHalf *out, bool is_single_batch);
 
     void reshape(MatrixHalf *out, int heads) const;
 

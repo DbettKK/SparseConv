@@ -16,6 +16,7 @@ public:
     void init();
     void free();
     void forward(MatrixHalf *input, MatrixHalf *encoder_in, MatrixHalf *output);
+    void forwardN(MatrixHalf *input, MatrixHalf *encoder_in, MatrixHalf *output, int N);
 };
 
 

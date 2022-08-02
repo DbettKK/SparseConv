@@ -49,7 +49,29 @@ int MyTensor::getSize() {
 }
 
 void MyTensor::batchNorm(int out_c, MyTensor *out) {
-    this->copy(out);
+    half *h_tensor = new half[getSize()];
+    cudaMemcpy(h_tensor, tensor, sizeof(half) * getSize(), cudaMemcpyDeviceToHost);
+    auto mean = new float[channel];
+    //auto mean_2 = new float[channel];
+    auto std = new float[channel];
+    for (int i = 0; i < channel; i++) {
+        float m1 = 0.0, m2 = 0.0;
+        for (int b = 0; b < batch; b++) {
+            for (int w = 0; w < width; w++) {
+                for (int h = 0; h < height; h++) {
+                    int idx = b * channel * width * height + i * width * height + w * height + h;
+                    float item = __half2float(h_tensor[idx]);
+                    m1 += item / (float)(batch * width * height);
+                    m2 += item / (float)(batch * width * height) * item ;
+                }
+            }
+        }
+        mean[i] = m1;
+        std[i] = sqrt(m2 - m1 * m1);
+        printf("mean: %f, std: %f\n", mean[i], std[i]);
+    }
+
+    //this->copy(out);
 }
 
 void MyTensor::relu(MyTensor *out) {
@@ -176,14 +198,15 @@ void MyTensor::avgpool(MyTensor *out) {
 MyTensor::MyTensor(int batch, int channel, int width, int height, bool is_device, half init) : batch(batch),
                                                                                     channel(channel), width(width),
                                                                                     height(height) {
+    int tt = batch * channel * width * height;
     if (is_device) {
-        half *tmp = new half[getSize()];
-        for (int i = 0; i < getSize(); i++) tmp[i] = init;
-        cudaMalloc(&tensor, sizeof(half) * getSize());
-        cudaMemcpy(tensor, tmp, sizeof(half) * getSize(), cudaMemcpyHostToDevice);
+        half *tmp = new half[tt];
+        for (int i = 0; i < tt; i++) tmp[i] = init;
+        cudaMalloc(&tensor, sizeof(half) * tt);
+        cudaMemcpy(tensor, tmp, sizeof(half) * tt, cudaMemcpyHostToDevice);
     } else {
-        tensor = new half[getSize()];
-        for (int i = 0; i < getSize(); i++) tensor[i] = init;
+        tensor = new half[tt];
+        for (int i = 0; i < tt; i++) tensor[i] = init;
     }
 }
 

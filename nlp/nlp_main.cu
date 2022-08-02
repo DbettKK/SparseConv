@@ -228,9 +228,19 @@ void test_gemm() {
     outA->print("outA: ", true);
 }
 
+void test_trans() {
+    auto t = new Transformer();
+    t->init(16, 512);
+    int *en_in = new int[2 * 16];
+    int *de_in = new int[2 * 16];
+    for (int i = 0; i < 2 * 16; i++) en_in[i] = i / 2 + 1;
+    for (int i = 0; i < 2 * 16; i++) de_in[i] = i / 2 + 1;
+    auto out = new MatrixHalf(2, 16, 512, true);
+    t->forward(en_in, 2, 16, de_in, 2, 16, 512, out);
+}
+
 int main() {
-    Transformer *t = new Transformer();
-    t->make_mask1(10, nullptr);
+    test_trans();
     return 0;
     auto a = new Attention();
     a->initW();

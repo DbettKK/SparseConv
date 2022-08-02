@@ -22,3 +22,14 @@ void Encoder::free() {
     attn->free();
     mlp->free();
 }
+
+void Encoder::forwardN(MatrixHalf *input, MatrixHalf *output, int N) {
+    for (int i = 0; i < N; i++) {
+        auto out = new MatrixHalf(input->getBatch(), input->getRow(), input->getCol(), true);
+        forward(input, out);
+        out->copyTo(input);
+        out->free_matrix();
+    }
+    input->copyTo(output);
+    //input->free_matrix();
+}

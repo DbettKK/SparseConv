@@ -17,6 +17,7 @@ from pyitcast.transformer_utils import SimpleLossCompute
 from pyitcast.transformer_utils import run_epoch
 from pyitcast.transformer_utils import Batch
 
+
 def subsequent_mask(size):
     attn_shape = (1, size, size)
     # 先生成上三角矩阵
@@ -61,7 +62,7 @@ class Embedding(nn.Module):
         """ vocab: 词表大小 """
         super(Embedding, self).__init__()
         # 直接调用API
-        self.ebd = nn.Embedding(d_model, vocab)
+        self.ebd = nn.Embedding(vocab, d_model)
         self.d_model = d_model
 
     def forward(self, x):

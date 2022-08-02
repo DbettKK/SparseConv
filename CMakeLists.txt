@@ -8,6 +8,7 @@ add_subdirectory(ptx)
 add_subdirectory(cpp)
 add_subdirectory(nlp)
 add_subdirectory(resnet)
+add_subdirectory(test)
 
 set_target_properties(SparseConv PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON)

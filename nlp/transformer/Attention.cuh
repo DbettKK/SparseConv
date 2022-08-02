@@ -21,7 +21,9 @@ public:
 
     void free();
 
-    void attn(half *Q, half *K, half *V, half *out, int max_len, int ebd) const;
+    void attn(half *Q, half *K, half *V, half *out, int batch, int max_len, int ebd);
+
+    void make_mask1(int max_len, int *out);
 };
 
 

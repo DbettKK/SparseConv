@@ -67,10 +67,18 @@ void MatrixHalf::gemm(MatrixHalf *item, MatrixHalf *out) {
     //gemm_simple<<<grid, block>>>(this->matrix, item->matrix, row, col, item->col, out->matrix);
 }
 
-void MatrixHalf::gemm_batches(MatrixHalf *item, MatrixHalf *out) {
-    for (int i = 0; i < batch; i++) {
-        cublas_gemm_device(matrix + i * row * col, item->matrix + i * item->row * item->col,
-                           row, col, item->col, out->matrix + i * out->row * out->col);
+void MatrixHalf::gemm_batches(MatrixHalf *item, MatrixHalf *out, bool is_single_batch) {
+    // is_single_batch: item的batch数是否为1
+    if (is_single_batch) {
+        for (int i = 0; i < batch; i++) {
+            cublas_gemm_device(matrix + i * row * col, item->matrix, row, col, item->col,
+                               out->matrix + i * out->row * out->col);
+        }
+    } else {
+        for (int i = 0; i < batch; i++) {
+            cublas_gemm_device(matrix + i * row * col, item->matrix + i * item->row * item->col,
+                               row, col, item->col, out->matrix + i * out->row * out->col);
+        }
     }
 }
 
@@ -79,8 +87,9 @@ int MatrixHalf::getSize() const {
 }
 
 void MatrixHalf::reshape(MatrixHalf *out, int heads) const {
+    dim3 block(this->batch, heads);
     dim3 thread(this->row, this->col / heads);
-    reshape_multi_head<<<heads, thread>>>(this->matrix, out->matrix, this->row, this->col, heads);
+    reshape_multi_head<<<block, thread>>>(this->matrix, out->matrix, this->row, this->col, heads);
 }
 
 void MatrixHalf::transpose(MatrixHalf *out) {
@@ -116,7 +125,13 @@ void MatrixHalf::print(const std::string& msg, bool is_device) {
 }
 
 void MatrixHalf::free_matrix() {
-    CHECK_CUDA(cudaFree(matrix))
+    cudaError_t st = cudaFree(matrix);
+    if (st != cudaSuccess) {
+        printf("CUDA API failed at %s line %d with error: %s (%d)\n",
+               __FILE__, __LINE__, cudaGetErrorString(st), st);
+        return;
+    }
+    //CHECK_CUDA(cudaFree(matrix))
 }
 
  void MatrixHalf::print_device(half *item, int row, int col) {

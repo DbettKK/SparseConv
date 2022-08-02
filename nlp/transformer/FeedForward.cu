@@ -20,7 +20,7 @@ void FeedForward::forward(MatrixHalf *input, MatrixHalf *output) {
     // 第二个线性层
     ff->gemm(W2, mo);
     // Add & LayerNorm
-    ff->addMatrix(input, output);
+    mo->addMatrix(input, output);
 }
 
 void FeedForward::free() {
