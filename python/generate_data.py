@@ -1,5 +1,5 @@
 import random
-import torch
+#import torch
 import numpy as np
 
 data_path = "../data"
@@ -128,6 +128,7 @@ def conv(data_size: list, kernel_size: list, padding: int, stride: int, data_bou
 
 
 def generate_data_filter(d_size, f_size, d_path, f_path, d_bound, f_bound):
+    # print(f_size)
     data1 = make_dense_data(get_total_size(d_size), d_bound, 'float16')
     filter1 = make_sparse_kernel(f_size[0], get_total_size(f_size) // f_size[0], f_bound, 'float16')
     data1.tofile(d_path)
@@ -486,4 +487,4 @@ if __name__ == '__main__':
     # generate_resnet18_matmul()
     # generate_alexnet_matmul()
     # generate_alexnet_percent()
-    generate_resnet18()
+    generate_resnet50()
