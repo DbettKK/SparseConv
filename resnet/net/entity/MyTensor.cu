@@ -49,6 +49,8 @@ int MyTensor::getSize() {
 }
 
 void MyTensor::batchNorm(int out_c, MyTensor *out) {
+    /*auto bn_t = new CudaTime();
+    bn_t->initAndStart();
     half *h_tensor = new half[getSize()];
     cudaMemcpy(h_tensor, tensor, sizeof(half) * getSize(), cudaMemcpyDeviceToHost);
     auto mean = new float[channel];
@@ -61,21 +63,40 @@ void MyTensor::batchNorm(int out_c, MyTensor *out) {
                 for (int h = 0; h < height; h++) {
                     int idx = b * channel * width * height + i * width * height + w * height + h;
                     float item = __half2float(h_tensor[idx]);
-                    m1 += item / (float)(batch * width * height);
-                    m2 += item / (float)(batch * width * height) * item ;
+                    m1 += item / (float) (batch * width * height);
+                    m2 += item / (float) (batch * width * height) * item;
                 }
             }
         }
         mean[i] = m1;
         std[i] = sqrt(m2 - m1 * m1);
-        printf("mean: %f, std: %f\n", mean[i], std[i]);
     }
-
+    // cpu
+    for (int i = 0; i < channel; i++) {
+        for (int b = 0; b < batch; b++) {
+            for (int w = 0; w < width; w++) {
+                for (int h = 0; h < height; h++) {
+                    int idx = b * channel * width * height + i * width * height + w * height + h;
+                    float item = __half2float(h_tensor[idx]);
+                    h_tensor[idx] = (item - mean[i]) / std[i];
+                }
+            }
+        }
+    }
+    cudaMemcpy(out->getTensor(), h_tensor, sizeof(half) * getSize(), cudaMemcpyHostToDevice);*/
+    //printf("bn time: %fms\n", bn_t->endAndGetTime());
+    //auto bn_t = new CudaTime();
+    //bn_t->initAndStart();
+    bn_cudnn(tensor, batch, channel, width, height, out->getTensor());
+    //printf("bn time: %fms\n", bn_t->endAndGetTime());
     //this->copy(out);
 }
 
 void MyTensor::relu(MyTensor *out) {
+    //auto relu_t = new CudaTime();
+    //relu_t->initAndStart();
     ReLU<<<getSize() / 32 + 1, 32>>>(tensor, out->tensor, getSize());
+    //printf("relu time: %fms\n", relu_t->endAndGetTime());
 }
 
 void MyTensor::print_half(half *item, int batch, int channel, int width, int height) {
@@ -83,7 +104,8 @@ void MyTensor::print_half(half *item, int batch, int channel, int width, int hei
         for (int j = 0; j < channel; j++) {
             for (int k = 0; k < width; k++) {
                 for (int v = 0; v < height; v++) {
-                    printf("%.2f ", __half2float(item[i * channel * width * height + j * width * height + k * height + v]));
+                    printf("%.2f ",
+                           __half2float(item[i * channel * width * height + j * width * height + k * height + v]));
                 }
                 printf("\n");
             }
@@ -135,7 +157,8 @@ void MyTensor::print_half_device(half *item, int batch, int channel, int width, 
         for (int j = 0; j < channel; j++) {
             for (int k = 0; k < width; k++) {
                 for (int v = 0; v < height; v++) {
-                    printf("%.2f ", __half2float(h1[i * channel * width * height + j * width * height + k * height + v]));
+                    printf("%.2f ",
+                           __half2float(h1[i * channel * width * height + j * width * height + k * height + v]));
                 }
                 printf("\n");
             }
@@ -147,8 +170,8 @@ void MyTensor::print_half_device(half *item, int batch, int channel, int width, 
 }
 
 MyTensor::MyTensor(int batch, int channel, int width, int height, bool is_device) : batch(batch),
-                                                                                  channel(channel), width(width),
-                                                                                  height(height) {
+                                                                                    channel(channel), width(width),
+                                                                                    height(height) {
     if (is_device) {
         cudaMalloc(&tensor, sizeof(half) * getSize());
     } else {
@@ -158,11 +181,15 @@ MyTensor::MyTensor(int batch, int channel, int width, int height, bool is_device
 
 void
 MyTensor::conv2d(int conv_num, int out_channel, int kernel_w, int kernel_h, int stride, int padding, MyTensor *out) {
+
     MyTensor *kernel = getKernel(conv_num, out_channel, this->getChannel(), kernel_w, kernel_h);
-//    conv2d_device_cudnn(this->tensor, kernel->tensor, batch, channel, kernel->batch, width, height, kernel->width,
-//                        kernel->height, stride, padding, out->getTensor());
+    //conv2d_device_cudnn(this->tensor, kernel->tensor, batch, channel, kernel->batch, width, height, kernel->width,
+    //                    kernel->height, stride, padding, out->getTensor());
+    //auto conv_t = new CudaTime();
+    //conv_t->initAndStart();
     conv2d_device_spmma(this->tensor, kernel->tensor, batch, channel, kernel->batch, width, height, kernel->width,
                         kernel->height, stride, padding, out->getTensor());
+    //printf("conv%d time: %fms ", conv_num, conv_t->endAndGetTime());
 }
 
 MyTensor *MyTensor::getKernel(int conv_num, int out_channel, int in_channel, int kernel_w, int kernel_h) {
@@ -170,10 +197,10 @@ MyTensor *MyTensor::getKernel(int conv_num, int out_channel, int in_channel, int
 }
 
 void MyTensor::maxpool(int kernel_size, int stride, int padding, MyTensor *out) {
-    this->copy(out);
+    pool_cudnn(tensor, batch, channel, width, height, out->getTensor(), kernel_size, padding, stride, 1);
 }
 
-MyTensor* MyTensor::copyTo() {
+MyTensor *MyTensor::copyTo() {
     MyTensor *out = new MyTensor(batch, channel, width, height, true);
     cudaMemcpy(out->getTensor(), tensor, sizeof(half) * out->getSize(), cudaMemcpyDeviceToDevice);
     return out;
@@ -192,12 +219,36 @@ void MyTensor::free_tensor() {
 }
 
 void MyTensor::avgpool(MyTensor *out) {
-    this->copy(out);
+    pool_cudnn(tensor, batch, channel, width, height, out->getTensor(), width, 0, 2, 0);
+    //auto avg_t = new CudaTime();
+    //avg_t->initAndStart();
+    /*half *h_item = new half[this->getSize()];
+    half *h_out = new half[batch * channel];
+    int cnt = 0;
+    cudaMemcpy(h_item, tensor, sizeof(half) * getSize(), cudaMemcpyDeviceToHost);
+    for (int i = 0; i < batch; i++) {
+        for (int j = 0; j < channel; j++) {
+            float mean = 0.0;
+            for (int w = 0; w < width; w++) {
+                for (int h = 0; h < height; h++) {
+                    int idx = i * channel * height * width + j * width * height + w * height + h;
+                    mean += __half2float(h_item[idx]);
+                }
+            }
+            h_out[cnt++] = mean / (float)(width * height);
+        }
+    }
+    cudaMemcpy(out->getTensor(), h_out, sizeof(half) * batch * channel, cudaMemcpyHostToDevice);
+    delete[] h_out;
+    delete[] h_item;
+    //this->copy(out);
+    //printf("avg time: %fms\n", avg_t->endAndGetTime());*/
 }
 
 MyTensor::MyTensor(int batch, int channel, int width, int height, bool is_device, half init) : batch(batch),
-                                                                                    channel(channel), width(width),
-                                                                                    height(height) {
+                                                                                               channel(channel),
+                                                                                               width(width),
+                                                                                               height(height) {
     int tt = batch * channel * width * height;
     if (is_device) {
         half *tmp = new half[tt];
@@ -218,7 +269,8 @@ void MyTensor::print(bool is_device) {
         for (int j = 0; j < channel; j++) {
             for (int k = 0; k < width; k++) {
                 for (int v = 0; v < height; v++) {
-                    printf("%.2f ", __half2float(h1[i * channel * width * height + j * width * height + k * height + v]));
+                    printf("%.3f ",
+                           __half2float(h1[i * channel * width * height + j * width * height + k * height + v]));
                 }
                 printf("\n");
             }

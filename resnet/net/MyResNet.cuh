@@ -9,14 +9,15 @@
 #include "entity/MyTensor.cuh"
 
 class MyResNet {
+    MyTensor *W_fc = new MyTensor(1, 1, 2048, 1000, true, 1);
 
-    void bottleneck1(MyTensor *input, MyTensor *output, int times);
+    static void bottleneck1(MyTensor *input, MyTensor *output, int times);
 
-    void bottleneck2(MyTensor *input, MyTensor *output, int times);
+    static void bottleneck2(MyTensor *input, MyTensor *output, int times);
 
-    void bottleneck3(MyTensor *input, MyTensor *output, int times);
+    static void bottleneck3(MyTensor *input, MyTensor *output, int times);
 
-    void bottleneck4(MyTensor *input, MyTensor *output, int times);
+    static void bottleneck4(MyTensor *input, MyTensor *output, int times);
 
 public:
     void resnet50();

@@ -12,10 +12,6 @@ __global__ void ReLU(half *in, half *out, int size) {
     }
 }
 
-__global__ void BN(half *in, half *out, int batch, int channel, int width, int height) {
-
-}
-
 void conv2d_device_spmma(half *feature, half *kernel, int batch, int in_c, int out_c,
                    int f_w, int f_h, int k_w, int k_h, int stride, int padding, half *out) {
     // 0. malloc
@@ -29,7 +25,7 @@ void conv2d_device_spmma(half *feature, half *kernel, int batch, int in_c, int o
     im2col_gpu(feature, batch, in_c, f_h, f_w, k_h, k_w, padding, padding,
                      stride, stride, 1, 1, im2col_out);
     // 2. gemm
-    sparse_mma_gemm_device(kernel, im2col_out, out_c, in_c * k_h * k_w, batch * out_w * out_h, false, gemm_out);
+    sparse_mma_gemm_device(kernel, im2col_out, out_c, in_c * k_h * k_w, batch * out_w * out_h, true, gemm_out);
 
     // 3. col2im
     int num_kernels = batch * out_w * out_h;
@@ -150,3 +146,125 @@ void conv2d_device_cudnn(half *feature, half *kernel, int batch, int in_c, int o
 //    }
 }
 
+void bn_cudnn(half *feature, int batch, int channel, int width, int height, half *out) {
+    // handle
+    cudnnHandle_t handle;
+    CHECK_CUDNN(cudnnCreate(&handle))
+    // bn mode
+    cudnnBatchNormMode_t mode = CUDNN_BATCHNORM_SPATIAL;
+    float alpha = 1.0, beta = 0.0;
+    double epsilon = 0.00001;
+    // input
+    cudnnTensorDescriptor_t input_descriptor;
+    CHECK_CUDNN(cudnnCreateTensorDescriptor(&input_descriptor))
+    CHECK_CUDNN(cudnnSetTensor4dDescriptor(input_descriptor, CUDNN_TENSOR_NCHW, CUDNN_DATA_HALF,
+                                           batch, channel, height, width)) // n, c, h,
+
+    // output
+    cudnnTensorDescriptor_t output_descriptor;
+    CHECK_CUDNN(cudnnCreateTensorDescriptor(&output_descriptor))
+    CHECK_CUDNN(cudnnSetTensor4dDescriptor(output_descriptor, CUDNN_TENSOR_NCHW, CUDNN_DATA_HALF,
+                                           batch, channel, height, width))
+
+    // get bnScaleBiasMeanVarDesc
+    cudnnTensorDescriptor_t bnScaleBiasMeanVarDesc;
+    CHECK_CUDNN(cudnnCreateTensorDescriptor(&bnScaleBiasMeanVarDesc))
+    CHECK_CUDNN(cudnnDeriveBNTensorDescriptor(bnScaleBiasMeanVarDesc, input_descriptor, mode))
+
+    // param
+    auto *scale = new float[channel];
+    auto *bias = new float[channel];
+    for (int i = 0; i < channel; i++) {
+        scale[i] = 1;
+        bias[i] = 0;
+    }
+    float *d_scale, *d_bias;
+    cudaMalloc(&d_scale, sizeof(float) * channel);
+    cudaMalloc(&d_bias, sizeof(float) * channel);
+    cudaMemcpy(d_scale, scale, sizeof(float) * channel, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_bias, bias, sizeof(float) * channel, cudaMemcpyHostToDevice);
+
+    // 计算
+    CHECK_CUDNN(cudnnBatchNormalizationForwardTraining(handle, mode, &alpha, &beta, input_descriptor, feature, output_descriptor,
+                                           out, bnScaleBiasMeanVarDesc, d_scale, d_bias, 0.0,
+                                           nullptr, nullptr, epsilon, nullptr, nullptr))
+    // free
+    CHECK_CUDNN(cudnnDestroyTensorDescriptor(input_descriptor))
+    CHECK_CUDNN(cudnnDestroyTensorDescriptor(output_descriptor))
+    CHECK_CUDNN(cudnnDestroyTensorDescriptor(bnScaleBiasMeanVarDesc))
+
+    CHECK_CUDNN(cudnnDestroy(handle))
+}
+
+void pool_cudnn(half *feature, int batch, int channel, int width, int height, half *out, int window_size,
+              int padding, int stride, int modes) {
+    /* mode: 1 -> maxpool | 其他 -> avgpool */
+    // handle
+    cudnnHandle_t handle;
+    CHECK_CUDNN(cudnnCreate(&handle))
+    float alpha = 1.0, beta = 0.0;
+    // mode
+    cudnnPoolingMode_t mode = modes == 1 ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
+    cudnnNanPropagation_t np = CUDNN_NOT_PROPAGATE_NAN;
+    // pool
+    cudnnPoolingDescriptor_t pool;
+    CHECK_CUDNN(cudnnCreatePoolingDescriptor(&pool))
+    CHECK_CUDNN(cudnnSetPooling2dDescriptor(pool, mode, np, window_size, window_size, padding, padding, stride, stride))
+
+    // input
+    cudnnTensorDescriptor_t input_descriptor;
+    CHECK_CUDNN(cudnnCreateTensorDescriptor(&input_descriptor))
+    CHECK_CUDNN(cudnnSetTensor4dDescriptor(input_descriptor, CUDNN_TENSOR_NCHW, CUDNN_DATA_HALF,
+                                           batch, channel, height, width)) // n, c, h,
+
+    // get output dim
+    int out_n, out_c, out_h, out_w;
+    CHECK_CUDNN(cudnnGetPooling2dForwardOutputDim(pool, input_descriptor, &out_n, &out_c, &out_h, &out_w))
+    // printf("NCHW: %d %d %d %d\n", out_n, out_c, out_h, out_w);
+
+    // output
+    cudnnTensorDescriptor_t output_descriptor;
+    CHECK_CUDNN(cudnnCreateTensorDescriptor(&output_descriptor))
+    CHECK_CUDNN(cudnnSetTensor4dDescriptor(output_descriptor, CUDNN_TENSOR_NCHW, CUDNN_DATA_HALF,
+                                           out_n, out_c, out_h, out_w))
+
+    // pool
+    CHECK_CUDNN(cudnnPoolingForward(handle, pool, &alpha, input_descriptor, feature, &beta, output_descriptor, out))
+
+    // free
+    CHECK_CUDNN(cudnnDestroyTensorDescriptor(input_descriptor))
+    CHECK_CUDNN(cudnnDestroyTensorDescriptor(output_descriptor))
+    CHECK_CUDNN(cudnnDestroyPoolingDescriptor(pool))
+
+    CHECK_CUDNN(cudnnDestroy(handle))
+
+}
+
+void softmax_cudnn(half *feature, int batch, int channel, int width, int height, half *out) {
+    // handle
+    cudnnHandle_t handle;
+    CHECK_CUDNN(cudnnCreate(&handle))
+
+    float alpha = 1.0, beta = 0.0;
+
+    // input
+    cudnnTensorDescriptor_t input_descriptor;
+    CHECK_CUDNN(cudnnCreateTensorDescriptor(&input_descriptor))
+    CHECK_CUDNN(cudnnSetTensor4dDescriptor(input_descriptor, CUDNN_TENSOR_NCHW, CUDNN_DATA_HALF,
+                                           batch, channel, height, width)) // n, c, h,
+    // output
+    cudnnTensorDescriptor_t output_descriptor;
+    CHECK_CUDNN(cudnnCreateTensorDescriptor(&output_descriptor))
+    CHECK_CUDNN(cudnnSetTensor4dDescriptor(output_descriptor, CUDNN_TENSOR_NCHW, CUDNN_DATA_HALF,
+                                           batch, channel, height, width))
+
+    // softmax
+    CHECK_CUDNN(cudnnSoftmaxForward(handle, CUDNN_SOFTMAX_ACCURATE, CUDNN_SOFTMAX_MODE_CHANNEL, &alpha,
+                                    input_descriptor, feature, &beta, output_descriptor, out))
+
+    // free
+    CHECK_CUDNN(cudnnDestroyTensorDescriptor(input_descriptor))
+    CHECK_CUDNN(cudnnDestroyTensorDescriptor(output_descriptor))
+
+    CHECK_CUDNN(cudnnDestroy(handle))
+}

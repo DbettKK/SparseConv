@@ -46,20 +46,39 @@ void test_conv2d() {
 
 void test_resnet() {
     auto mr = new MyResNet();
-    mr->resnet50();
+    for (int i = 0; i < 2; i++) {
+        auto tt = new CudaTime();
+        tt->initAndStart();
+        mr->resnet50();
+        printf("total time: %fms\n", tt->endAndGetTime());
+    }
+
 }
 
 void test_bn() {
-    MyTensor *t = new MyTensor(2, 2, 4, 4, false, 1);
-    for (int i = 0; i < 64; i++) t->getTensor()[i] = i;
-    half *dd;
-    cudaMalloc(&dd, sizeof(half) * 64);
-    cudaMemcpy(dd, t->getTensor(), sizeof(half) * 64, cudaMemcpyHostToDevice);
-    t->setTensor(dd);
-    t->batchNorm(1, nullptr);
+    half *hf = new half[2 * 3 * 4 * 4];
+    for (int i = 0; i < 96; i++) hf[i] = 2;
+    half *df, *d_out;
+    cudaMalloc(&df, sizeof(half) * 96);
+    cudaMalloc(&d_out, sizeof(half) * 96);
+    cudaMemcpy(df, hf, sizeof(half) * 96, cudaMemcpyHostToDevice);
+    bn_cudnn(df, 2, 3, 4, 4, d_out);
+    MyTensor::print_half_device(d_out, 2, 3, 4, 4);
+}
+
+void test_pool() {
+    half *hf = new half[2 * 3 * 4 * 4];
+    for (int i = 0; i < 96; i++) hf[i] = i;
+    half *df, *d_out;
+    cudaMalloc(&df, sizeof(half) * 96);
+    cudaMalloc(&d_out, sizeof(half) * 2 * 3 * 1 * 1);
+    cudaMemcpy(df, hf, sizeof(half) * 96, cudaMemcpyHostToDevice);
+    pool_cudnn(df, 2, 3, 4, 4, d_out, 4, 0, 2, 3);
+    MyTensor::print_half_device(d_out, 2, 3, 1, 1);
+    //MyTensor::print_half_device(df, 2, 3, 4, 4);
 }
 
 int main() {
-    test_bn();
+    test_resnet();
     return 0;
 }
