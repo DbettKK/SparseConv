@@ -9,11 +9,11 @@ void MyResNet::resnet50() {
     //for (auto & time : times) time = new CudaTime();
     //times[0]->initAndStart();
 
-    auto input = new MyTensor(1, 3, 224, 224, true, 1);
+    auto input = new MyTensor(1, 3, 224, 224, true, "data");
     // 1. conv1
     //times[1]->initAndStart();
     auto conv1_out = new MyTensor(1, 64, 112, 112, true);
-    input->conv2d(1, 64, 7, 7, 2, 3, conv1_out);
+    input->conv2d(0, 64, 7, 7, 2, 3, conv1_out);
     //printf("conv1 time: %fms\n", times[1]->endAndGetTime());
     //conv1_out->print(true);
     // 2. maxpool
@@ -94,32 +94,32 @@ void MyResNet::resnet50() {
     liner_out->free_tensor();
 
 
-    //softmax_out->print(true);
+    // softmax_out->print(true);
 }
 
 void MyResNet::bottleneck1(MyTensor *input, MyTensor *output, int times) {
     auto conv1_out = new MyTensor(1, 64, 56, 56, true);
-    input->conv2d(2 + 3 * times, 64, 1, 1, 1, 0, conv1_out);
+    input->conv2d(1 + 3 * times, 64, 1, 1, 1, 0, conv1_out);
     auto bn1_out = new MyTensor(1, 64, 56, 56, true);
     conv1_out->batchNorm(64, bn1_out);
     auto relu1_out = new MyTensor(1, 64, 56, 56, true);
     bn1_out->relu(relu1_out);
 
     auto conv2_out = new MyTensor(1, 64, 56, 56, true);
-    relu1_out->conv2d(3 + 3 * times, 64, 3, 3, 1, 1, conv2_out);
+    relu1_out->conv2d(2 + 3 * times, 64, 3, 3, 1, 1, conv2_out);
     auto bn2_out = new MyTensor(1, 64, 56, 56, true);
     conv2_out->batchNorm(64, bn2_out);
     auto relu2_out = new MyTensor(1, 64, 56, 56, true);
     bn2_out->relu(relu2_out);
 
     auto conv3_out = new MyTensor(1, 256, 56, 56, true);
-    relu2_out->conv2d(4 + 3 * times, 64, 1, 1, 1, 0, conv3_out);
+    relu2_out->conv2d(3 + 3 * times, 64, 1, 1, 1, 0, conv3_out);
     auto bn3_out = new MyTensor(1, 256, 56, 56, true);
     conv3_out->batchNorm(64, bn3_out);
 
     // input 下采样
     auto downsample = new MyTensor(1, 256, 56, 56, true);
-    input->conv2d(97 + times, 256, 1, 1, 1, 0, downsample);
+    input->conv2d(100 + times, 256, 1, 1, 1, 0, downsample);
     auto bn_down = new MyTensor(1, 256, 56, 56, true);
     downsample->batchNorm(256, bn_down);
 
@@ -148,27 +148,27 @@ void MyResNet::bottleneck1(MyTensor *input, MyTensor *output, int times) {
 
 void MyResNet::bottleneck2(MyTensor *input, MyTensor *output, int times) {
     auto conv1_out = new MyTensor(1, 128, 56, 56, true);
-    input->conv2d(11 + 3 * times, 128, 1, 1, 1, 0, conv1_out);
+    input->conv2d(10 + 3 * times, 128, 1, 1, 1, 0, conv1_out);
     auto bn1_out = new MyTensor(1, 128, 56, 56, true);
     conv1_out->batchNorm(128, bn1_out);
     auto relu1_out = new MyTensor(1, 128, 56, 56, true);
     bn1_out->relu(relu1_out);
 
     auto conv2_out = new MyTensor(1, 128, 28, 28, true);
-    relu1_out->conv2d(12 + 3 * times, 128, 3, 3, 2, 1, conv2_out);
+    relu1_out->conv2d(11 + 3 * times, 128, 3, 3, 2, 1, conv2_out);
     auto bn2_out = new MyTensor(1, 128, 28, 28, true);
     conv2_out->batchNorm(128, bn2_out);
     auto relu2_out = new MyTensor(1, 128, 28, 28, true);
     bn2_out->relu(relu2_out);
 
     auto conv3_out = new MyTensor(1, 512, 28, 28, true);
-    relu2_out->conv2d(13 + 3 * times, 512, 1, 1, 1, 0, conv3_out);
+    relu2_out->conv2d(12 + 3 * times, 512, 1, 1, 1, 0, conv3_out);
     auto bn3_out = new MyTensor(1, 512, 28, 28, true);
     conv3_out->batchNorm(512, bn3_out);
 
     // input 下采样
     auto downsample = new MyTensor(1, 512, 28, 28, true);
-    input->conv2d(100 + times, 512, 1, 1, 2, 0, downsample);
+    input->conv2d(103 + times, 512, 1, 1, 2, 0, downsample);
     auto bn_down = new MyTensor(1, 512, 28, 28, true);
     downsample->batchNorm(512, bn_down);
 
@@ -197,27 +197,27 @@ void MyResNet::bottleneck2(MyTensor *input, MyTensor *output, int times) {
 
 void MyResNet::bottleneck3(MyTensor *input, MyTensor *output, int times) {
     auto conv1_out = new MyTensor(1, 256, 28, 28, true);
-    input->conv2d(23 + 3 * times, 256, 1, 1, 1, 0, conv1_out);
+    input->conv2d(22 + 3 * times, 256, 1, 1, 1, 0, conv1_out);
     auto bn1_out = new MyTensor(1, 256, 28, 28, true);
     conv1_out->batchNorm(256, bn1_out);
     auto relu1_out = new MyTensor(1, 256, 28, 28, true);
     bn1_out->relu(relu1_out);
 
     auto conv2_out = new MyTensor(1, 256, 14, 14, true);
-    relu1_out->conv2d(24 + 3 * times, 256, 3, 3, 2, 1, conv2_out);
+    relu1_out->conv2d(23 + 3 * times, 256, 3, 3, 2, 1, conv2_out);
     auto bn2_out = new MyTensor(1, 256, 14, 14, true);
     conv2_out->batchNorm(256, bn2_out);
     auto relu2_out = new MyTensor(1, 256, 14, 14, true);
     bn2_out->relu(relu2_out);
 
     auto conv3_out = new MyTensor(1, 1024, 14, 14, true);
-    relu2_out->conv2d(25 + 3 * times, 1024, 1, 1, 1, 0, conv3_out);
+    relu2_out->conv2d(24 + 3 * times, 1024, 1, 1, 1, 0, conv3_out);
     auto bn3_out = new MyTensor(1, 1024, 14, 14, true);
     conv3_out->batchNorm(1024, bn3_out);
 
     // input 下采样
     auto downsample = new MyTensor(1, 1024, 14, 14, true);
-    input->conv2d(103 + times, 1024, 1, 1, 2, 0, downsample);
+    input->conv2d(107 + times, 1024, 1, 1, 2, 0, downsample);
     auto bn_down = new MyTensor(1, 1024, 14, 14, true);
     downsample->batchNorm(1024, bn_down);
 
@@ -246,27 +246,27 @@ void MyResNet::bottleneck3(MyTensor *input, MyTensor *output, int times) {
 
 void MyResNet::bottleneck4(MyTensor *input, MyTensor *output, int times) {
     auto conv1_out = new MyTensor(1, 512, 14, 14, true);
-    input->conv2d(41 + 3 * times, 512, 1, 1, 1, 0, conv1_out);
+    input->conv2d(40 + 3 * times, 512, 1, 1, 1, 0, conv1_out);
     auto bn1_out = new MyTensor(1, 512, 14, 14, true);
     conv1_out->batchNorm(512, bn1_out);
     auto relu1_out = new MyTensor(1, 512, 14, 14, true);
     bn1_out->relu(relu1_out);
 
     auto conv2_out = new MyTensor(1, 512, 7, 7, true);
-    relu1_out->conv2d(42 + 3 * times, 512, 3, 3, 2, 1, conv2_out);
+    relu1_out->conv2d(41 + 3 * times, 512, 3, 3, 2, 1, conv2_out);
     auto bn2_out = new MyTensor(1, 512, 7, 7, true);
     conv2_out->batchNorm(512, bn2_out);
     auto relu2_out = new MyTensor(1, 512, 7, 7, true);
     bn2_out->relu(relu2_out);
 
     auto conv3_out = new MyTensor(1, 2048, 7, 7, true);
-    relu2_out->conv2d(43 + 3 * times, 2048, 1, 1, 1, 0, conv3_out);
+    relu2_out->conv2d(42 + 3 * times, 2048, 1, 1, 1, 0, conv3_out);
     auto bn3_out = new MyTensor(1, 2048, 7, 7, true);
     conv3_out->batchNorm(2048, bn3_out);
 
     // input 下采样
     auto downsample = new MyTensor(1, 2048, 7, 7, true);
-    input->conv2d(109 + times, 2048, 1, 1, 2, 0, downsample);
+    input->conv2d(113 + times, 2048, 1, 1, 2, 0, downsample);
     auto bn_down = new MyTensor(1, 2048, 7, 7, true);
     downsample->batchNorm(2048, bn_down);
 

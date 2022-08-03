@@ -3,6 +3,24 @@
 //
 #include "kernels_transformer.cuh"
 
+bool check_sparse(half *item, int row, int col) {
+    printf("m: %d, k: %d\n", row, col);
+    half *host = new half[row * col];
+    cudaMemcpy(host, item, sizeof(half) * row * col, cudaMemcpyDeviceToHost);
+    for (int i = 0; i < row; i++) {
+        for (int j = 0; j < col; j+=4) {
+            int zero_cnt = 0;
+            for (int start = 0; start < 4; start++) {
+                if (__half2float(host[i * col + j + start]) == 0) {
+                    zero_cnt++;
+                }
+            }
+            if (zero_cnt < 2) return false;
+        }
+    }
+    return true;
+}
+
 __global__ void softmax_half(half *item, const int row, const int col) {
     __shared__ half mem[64][256]; // 记录每一列
     const int blx = blockIdx.x;
@@ -212,7 +230,9 @@ void sparse_mma_gemm_device(const half *inputA, const half *inputB, int inputM, 
         CHECK_CUDA(cudaMemcpyAsync(is_valid, d_valid, sizeof(d_valid), cudaMemcpyDeviceToHost, stream))
         CHECK_CUDA(cudaStreamSynchronize(stream))
         if (*is_valid == 1) {
-            printf("!!!! The matrix need to be pruned. valid: %d\n", *is_valid);
+            //if (!check_sparse(dA, m, k)) printf("no fit\n");
+            //else printf("fit\n");
+            //printf("!!!! The matrix need to be pruned. valid: %d\n", *is_valid);
             CHECK_CUSPARSE(cusparseLtSpMMAPrune(&handle, &matmul, dA, dA, CUSPARSELT_PRUNE_SPMMA_TILE, stream))
         }
     }

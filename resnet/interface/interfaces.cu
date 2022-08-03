@@ -25,7 +25,7 @@ void conv2d_device_spmma(half *feature, half *kernel, int batch, int in_c, int o
     im2col_gpu(feature, batch, in_c, f_h, f_w, k_h, k_w, padding, padding,
                      stride, stride, 1, 1, im2col_out);
     // 2. gemm
-    sparse_mma_gemm_device(kernel, im2col_out, out_c, in_c * k_h * k_w, batch * out_w * out_h, true, gemm_out);
+    sparse_mma_gemm_device(kernel, im2col_out, out_c, in_c * k_h * k_w, batch * out_w * out_h, false, gemm_out);
 
     // 3. col2im
     int num_kernels = batch * out_w * out_h;

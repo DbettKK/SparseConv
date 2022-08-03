@@ -36,13 +36,34 @@ def make_sparse_kernel(im_n: int, im_k: int, bound: int, data_type) -> np.ndarra
     return ret
 
 
+def check_spmma(kernel, row, col):
+    for i in range(row):
+        for j in range(0, col, 4):
+            cnt = 0
+            for k in range(4):
+                idx = i * col + j + k
+                if idx < row * col:
+                    if kernel[idx] == 0:
+                        cnt += 1
+                else:
+                    break
+            if cnt < 2:
+                return False
+    return True
+
+
 def ge_filter(kernel_size, conv_num, path):
     filter = make_sparse_kernel(kernel_size[0], get_total_size(kernel_size) // kernel_size[0], 1, 'float16')
+    #if check_spmma(filter, kernel_size[0], get_total_size(kernel_size) // kernel_size[0]) is False:
+    #    print("conv num:", conv_num, "\tfalse")
+    # print(filter)
     filter.tofile(path + '/filter' + str(conv_num))
+
 
 def resnet50():
     data_path = '../data/resnet50'
     data_size = [1, 3, 224, 224]
+    W_fc_size = [2048, 1000]
     kernel_size_x = [
         [256, 64, 1, 1],
         [256, 64, 1, 1],
@@ -113,6 +134,7 @@ def resnet50():
         [2048, 512, 1, 1],
     ]
     make_dense_data(get_total_size(data_size), 1, 'float16').tofile(data_path + '/data')
+    make_dense_data(get_total_size(W_fc_size), 1, 'float16').tofile(data_path + '/w_fc')
     for i in range(49):
         ge_filter(kernel_sizes[i], i, data_path)
     for i in range(16):
@@ -120,4 +142,5 @@ def resnet50():
 
 
 if __name__ == '__main__':
+    # ge_filter([64, 64, 3, 3], 1, "")
     resnet50()

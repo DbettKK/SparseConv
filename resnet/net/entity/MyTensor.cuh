@@ -6,16 +6,21 @@
 #define SPARSECONV_MYTENSOR_CUH
 
 #include <cuda_fp16.h>
+#include <fstream>
+#include <iostream>
+#include <string>
 #include "../../interface/interfaces.cuh"
 
 class MyTensor {
-    half *tensor;
+    half *tensor{};
     int batch, channel, width, height;
 
 public:
     MyTensor(int batch, int channel, int width, int height, bool is_device);
 
     MyTensor(int batch, int channel, int width, int height, bool is_device, half init);
+
+    MyTensor(int batch, int channel, int width, int height, bool is_device, std::string path);
 
     MyTensor* copyTo();
 

@@ -9,7 +9,7 @@
 #include "entity/MyTensor.cuh"
 
 class MyResNet {
-    MyTensor *W_fc = new MyTensor(1, 1, 2048, 1000, true, 1);
+    MyTensor *W_fc = new MyTensor(1, 1, 2048, 1000, true, "w_fc");
 
     static void bottleneck1(MyTensor *input, MyTensor *output, int times);
 
