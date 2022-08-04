@@ -24,6 +24,7 @@ void conv2d_device_spmma(half *feature, half *kernel, int batch, int in_c, int o
     // 1. im2col
     im2col_gpu(feature, batch, in_c, f_h, f_w, k_h, k_w, padding, padding,
                      stride, stride, 1, 1, im2col_out);
+    // im2col_cudnn(feature, batch, in_c, out_c, f_h, f_w, k_h, k_w, stride, padding, im2col_out);
     // 2. gemm
     sparse_mma_gemm_device(kernel, im2col_out, out_c, in_c * k_h * k_w, batch * out_w * out_h, false, gemm_out);
 
@@ -266,5 +267,43 @@ void softmax_cudnn(half *feature, int batch, int channel, int width, int height,
     CHECK_CUDNN(cudnnDestroyTensorDescriptor(input_descriptor))
     CHECK_CUDNN(cudnnDestroyTensorDescriptor(output_descriptor))
 
+    CHECK_CUDNN(cudnnDestroy(handle))
+}
+
+void im2col_cudnn(half *feature, int batch, int in_c, int out_c, int f_h, int f_w, int k_h, int k_w, int stride, int padding, half *out) {
+    // handle
+    cudnnHandle_t handle;
+    CHECK_CUDNN(cudnnCreate(&handle))
+    // input
+    cudnnTensorDescriptor_t input_descriptor;
+    CHECK_CUDNN(cudnnCreateTensorDescriptor(&input_descriptor))
+    CHECK_CUDNN(cudnnSetTensor4dDescriptor(input_descriptor, CUDNN_TENSOR_NCHW, CUDNN_DATA_HALF,
+                                           batch, in_c, f_h, f_w)) // n, c, h, w
+
+
+    // kernel
+    //printTensor(kernel, kernel_n, kernel_c, kernel_w, kernel_h, "kernel: ");
+    cudnnFilterDescriptor_t kernel_descriptor;
+    CHECK_CUDNN(cudnnCreateFilterDescriptor(&kernel_descriptor))
+    CHECK_CUDNN(cudnnSetFilter4dDescriptor(kernel_descriptor, CUDNN_DATA_HALF, CUDNN_TENSOR_NCHW,
+                                           out_c, in_c, k_h, k_w))
+
+    // convolution descriptor
+    cudnnConvolutionDescriptor_t conv_descriptor;
+    CHECK_CUDNN(cudnnCreateConvolutionDescriptor(&conv_descriptor))
+    CHECK_CUDNN(cudnnSetConvolution2dDescriptor(conv_descriptor,
+                                                padding, padding, // zero-padding
+                                                stride, stride, // stride
+                                                1, 1, // dilation 卷积核膨胀 膨胀后用0填充空位
+            // 卷积是需要将卷积核旋转180°再进行后续的 -> CUDNN_CONVOLUTION
+                                                CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT))
+
+    // im2col
+    CHECK_CUDNN(cudnnIm2Col(handle, input_descriptor, feature, kernel_descriptor, conv_descriptor, out))
+
+    // free
+    CHECK_CUDNN(cudnnDestroyTensorDescriptor(input_descriptor))
+    CHECK_CUDNN(cudnnDestroyFilterDescriptor(kernel_descriptor))
+    CHECK_CUDNN(cudnnDestroyConvolutionDescriptor(conv_descriptor))
     CHECK_CUDNN(cudnnDestroy(handle))
 }

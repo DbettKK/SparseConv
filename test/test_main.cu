@@ -5,7 +5,7 @@
 #include "../spmma/utils/CudaTime.cuh"
 
 const int threadsPerBlock = 512;
-const int N = 20480;
+const int N = 512 * 16;
 const int blocksPerGrid = (N + threadsPerBlock - 1) / threadsPerBlock; /* 4 */
 
 __global__ void ReductionSum(float *d_a, float *d_partial_sum) {
@@ -34,7 +34,13 @@ __global__ void ReductionSum(float *d_a, float *d_partial_sum) {
         d_partial_sum[blockIdx.x] = partialSum[0];
 }
 
-
+__global__ void layerSum(float *d, float *sum) {
+    int thx = threadIdx.x;
+    float sums = 0;
+    for (int i = 0; i < 512; i++) sums += d[thx * 512 + i];
+    //ReductionSum <<< 1, threadsPerBlock >>> (d, sum + thx);
+    sum[thx] = sums;
+}
 int main() {
     int size = sizeof(float);
 
@@ -45,9 +51,11 @@ int main() {
     /* 分配显存空间 */
     float *d_a;
     float *d_partial_sum;
+    float *d_sum;
 
     cudaMallocManaged((void **) &d_a, N * size);
     cudaMallocManaged((void **) &d_partial_sum, blocksPerGrid * size);
+    cudaMalloc(&d_sum, 16 * sizeof(float));
 
     for (int i = 0; i < N; ++i)
         d_a[i] = i;
@@ -55,16 +63,26 @@ int main() {
     /* 调用内核函数 */
     auto tt = new CudaTime();
     tt->initAndStart();
-    ReductionSum <<< blocksPerGrid, threadsPerBlock >>> (d_a, d_partial_sum);
+    layerSum<<<1, 16>>>(d_a, d_sum);
     printf("gpu: %fms\n", tt->endAndGetTime());
 
+    auto tt3 = new CudaTime();
+    tt3->initAndStart();
+    ReductionSum <<< blocksPerGrid, threadsPerBlock >>> (d_a, d_partial_sum);
+    printf("gpu2: %fms\n", tt3->endAndGetTime());
+
     // cpu
-    clock_t start = clock();
-    float ss = 0.0;
-    for (int i = 0; i < N; ++i) {
-        ss += hA[i];
+    auto tt2 = new CudaTime();
+    tt2->initAndStart();
+    float *ss = new float[16];
+    for (int j = 0; j < 16; j++) {
+        float sss = 0.0;
+        for (int i = 0; i < N; ++i) {
+            sss += hA[j * N + i];
+        }
+        ss[j] = sss;
     }
-    printf("cpu time: %fms\n", (double)(clock() - start) * 1000 / CLOCKS_PER_SEC);
+    printf("cpu time: %fms\n", tt2->endAndGetTime());
 
     /* 将部分和求和 */
     int sum = 0;

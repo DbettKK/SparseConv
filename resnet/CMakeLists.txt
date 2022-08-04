@@ -8,7 +8,7 @@ add_executable(Resnet ./net/MyResNet.cu ./net/MyResNet.cuh
         interface/interfaces.cu interface/interfaces.cuh resnet_main.cu
         interface/resnet_kernel.cuh interface/resnet_kernel.cu
         ../nlp/transformer/kernels_transformer.cuh ../nlp/transformer/kernels_transformer.cu
-        ../spmma/utils/CudaTime.cu ../spmma/utils/CudaTime.cuh)
+        ../spmma/utils/CudaTime.cu ../spmma/utils/CudaTime.cuh test/tests.cu test/tests.cuh)
 
 set_target_properties(Resnet PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON)

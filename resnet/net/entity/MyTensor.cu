@@ -184,13 +184,13 @@ MyTensor::conv2d(int conv_num, int out_channel, int kernel_w, int kernel_h, int 
     std::string path = "../../data/resnet50/filter" + std::to_string(conv_num);
     auto kernel = new MyTensor(out_channel, this->getChannel(), kernel_w, kernel_h, true, path);
     //kernel->print(true);
-    conv2d_device_cudnn(this->tensor, kernel->tensor, batch, channel, kernel->batch, width, height, kernel->width,
-                        kernel->height, stride, padding, out->getTensor());
+    //conv2d_device_cudnn(this->tensor, kernel->tensor, batch, channel, kernel->batch, width, height, kernel->width,
+    //                    kernel->height, stride, padding, out->getTensor());
     //auto conv_t = new CudaTime();
     //conv_t->initAndStart();
     //printf("conv%d\n", conv_num);
-    //conv2d_device_spmma(this->tensor, kernel->tensor, batch, channel, kernel->batch, width, height, kernel->width,
-    //                    kernel->height, stride, padding, out->getTensor());
+    conv2d_device_spmma(this->tensor, kernel->tensor, batch, channel, kernel->batch, width, height, kernel->width,
+                        kernel->height, stride, padding, out->getTensor());
     //printf("conv%d time: %fms ", conv_num, conv_t->endAndGetTime());
     kernel->free_tensor();
 }

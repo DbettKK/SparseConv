@@ -91,6 +91,11 @@ __global__ void matrix_add(half *A, half *B, half *C, int size) {
     }
 }
 
+__global__ void layerNorm_kernel(half *feature, int batch, int max_len, int size) {
+    // 每个线程处理
+    return;
+}
+
 
 void cublas_gemm_device(const half *d_A, const half *d_B, int inputM, int inputK, int inputN, half *output) {
     // 因为为列存储，为了方便，设置转置
@@ -574,3 +579,4 @@ void cusparse_gemm_csr_device_test() {
     CHECK_CUDA( cudaFree(dB) )
     CHECK_CUDA( cudaFree(dC) )
 }
+

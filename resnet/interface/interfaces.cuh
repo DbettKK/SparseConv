@@ -34,4 +34,6 @@ void pool_cudnn(half *feature, int batch, int channel, int width, int height, ha
 
 void softmax_cudnn(half *feature, int batch, int channel, int width, int height, half *out);
 
+void im2col_cudnn(half *feature, int batch, int in_c, int out_c, int f_h, int f_w, int k_h, int k_w, int stride, int padding, half *out);
+
 #endif //SPARSECONV_INTERFACES_CUH
