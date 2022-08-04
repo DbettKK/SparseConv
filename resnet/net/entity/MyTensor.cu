@@ -305,6 +305,7 @@ MyTensor::MyTensor(int batch, int channel, int width, int height, bool is_device
         CHECK_CUDA(cudaMemcpy(tensor, kernel, sizeof(half) * getSize(), cudaMemcpyHostToDevice))
         in.close();
     } else {
+        tensor = new half[getSize()];
         in.read((char *)tensor, getSize() * sizeof(half));
         in.close();
     }
