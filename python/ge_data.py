@@ -54,8 +54,11 @@ def check_spmma(kernel, row, col):
 
 def ge_filter(kernel_size, conv_num, path):
     filter = make_sparse_kernel(kernel_size[0], get_total_size(kernel_size) // kernel_size[0], 1, 'float16')
-    #if check_spmma(filter, kernel_size[0], get_total_size(kernel_size) // kernel_size[0]) is False:
-    #    print("conv num:", conv_num, "\tfalse")
+    if get_total_size(kernel_size) // kernel_size[0] % 8 == 0:
+        if check_spmma(filter, kernel_size[0], get_total_size(kernel_size) // kernel_size[0]) is False:
+            print("conv num:", conv_num, "\tfalse\n")
+        else:
+            print("conv num:", conv_num, "\ttrue\n")
     # print(filter)
     filter.tofile(path + '/filter' + str(conv_num))
 
