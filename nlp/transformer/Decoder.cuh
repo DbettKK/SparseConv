@@ -14,8 +14,7 @@ class Decoder {
     FeedForward *mlp;
 public:
     void init();
-    void free();
-    void forward(MatrixHalf *input, MatrixHalf *encoder_in, MatrixHalf *output);
+    void forward(MatrixHalf *input, MatrixHalf *encoder_in, MatrixHalf *output, int layer);
     void forwardN(MatrixHalf *input, MatrixHalf *encoder_in, MatrixHalf *output, int N);
 };
 

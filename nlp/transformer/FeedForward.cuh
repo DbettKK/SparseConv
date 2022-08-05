@@ -9,12 +9,9 @@
 #include "MatrixHalf.cuh"
 
 class FeedForward {
-    MatrixHalf *W1, *W2;
     int d_ff = 2048, d_model = 512;
 public:
-    void init();
-    void free();
-    void forward(MatrixHalf *input, MatrixHalf *output);
+    void forward(MatrixHalf *input, MatrixHalf *output, int layer, bool is_encoder);
 };
 
 

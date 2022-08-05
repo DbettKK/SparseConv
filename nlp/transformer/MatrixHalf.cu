@@ -165,5 +165,31 @@ void MatrixHalf::copyTo(MatrixHalf *out) {
     cudaMemcpy(out->getMatrix(), matrix, sizeof(half) * out->getSize(), cudaMemcpyDeviceToDevice);
 }
 
+void MatrixHalf::layerNorm(MatrixHalf *out) {
+    half *d_mean, *d_std;
+    CHECK_CUDA(cudaMalloc(&d_mean, sizeof(half) * batch * row))
+    CHECK_CUDA(cudaMalloc(&d_std, sizeof(half) * batch * row))
+    getMeanAndStd<<<batch, row>>>(matrix, batch, row, col, d_mean, d_std);
+    layerNorm_kernel<<<batch * row, col>>>(matrix, batch, row, col, d_mean, d_std, out->getMatrix());
+    // free
+    CHECK_CUDA(cudaFree(d_mean))
+    CHECK_CUDA(cudaFree(d_std))
+}
+
+MatrixHalf::MatrixHalf(int batch, int row, int col, bool is_device, const std::string path) : batch(batch), row(row), col(col) {
+    std::ifstream in(path, std::ios::binary);
+    if (is_device) {
+        half *mat = new half[getSize()];
+        in.read((char *)mat, getSize() * sizeof(half));
+        CHECK_CUDA(cudaMalloc(&matrix, sizeof(half) * getSize()))
+        CHECK_CUDA(cudaMemcpy(matrix, mat, sizeof(half) * getSize(), cudaMemcpyHostToDevice))
+        in.close();
+    } else {
+        matrix = new half[getSize()];
+        in.read((char *)matrix, getSize() * sizeof(half));
+        in.close();
+    }
+}
+
 
 

@@ -4,15 +4,33 @@
 
 #include "Attention.cuh"
 
+std::string getLayerString(int which_part) {
+    std::string en_or_de;
+    switch (which_part) {
+        case 1: en_or_de = "en";
+            break;
+        case 2: en_or_de = "self_de";
+            break;
+        case 3: en_or_de = "src_de";
+            break;
+        default: en_or_de = "en";
+    }
+    return en_or_de;
+}
+
 /* 默认输入输出都为device端 */
-void Attention::forward(MatrixHalf *inputQ, MatrixHalf *inputK, MatrixHalf *inputV, MatrixHalf *output) {
+void Attention::forward(MatrixHalf *inputQ, MatrixHalf *inputK, MatrixHalf *inputV, MatrixHalf *output, int layer, int which_part) {
+    std::string path_suffix = getLayerString(which_part) +  std::to_string(layer);
     // 1. input通过矩阵乘得到Q K V     input:[batch, sen, ebd]  QKV: [batch, sen, ebd]
     auto Q = new MatrixHalf(inputQ->getBatch(), inputQ->getRow(), inputQ->getCol(), true);
     auto K = new MatrixHalf(inputK->getBatch(), inputK->getRow(), inputK->getCol(), true);
     auto V = new MatrixHalf(inputV->getBatch(), inputV->getRow(), inputV->getCol(), true);
-    inputQ->gemm_batches(this->Wq, Q, true);
-    inputK->gemm_batches(this->Wk, K, true);
-    inputV->gemm_batches(this->Wv, V, true);
+    auto Wq = new MatrixHalf(1, embedding, embedding, true, "../../data/transformer/wq_" + path_suffix);
+    auto Wk = new MatrixHalf(1, embedding, embedding, true, "../../data/transformer/wk_" + path_suffix);
+    auto Wv = new MatrixHalf(1, embedding, embedding, true, "../../data/transformer/wv_" + path_suffix);
+    inputQ->gemm_batches(Wq, Q, true);
+    inputK->gemm_batches(Wk, K, true);
+    inputV->gemm_batches(Wv, V, true);
     // 2. QKV [batch, sen, ebd] -> [batch, head, sen, ebd / head]
     // 多头机制计算本质是reshape    outQ: [batch, heads, sen, ebd / heads]
     auto outQ = new MatrixHalf(Q->getBatch(), Q->getRow(), Q->getCol(), true);
@@ -31,23 +49,27 @@ void Attention::forward(MatrixHalf *inputQ, MatrixHalf *inputK, MatrixHalf *inpu
 
     // 4. 再一个线性层 运算结果concat并和 W0 运算得到输出
     auto attention_out = new MatrixHalf(inputQ->getBatch(), inputQ->getRow(), inputQ->getCol(), true);
-    concat->gemm_batches(this->W0, attention_out, true);
+    auto W0 = new MatrixHalf(1, embedding, embedding, true, "../../data/transformer/w0_" + path_suffix);
+    concat->gemm_batches(W0, attention_out, true);
     //concat->print("concat:", true);
 
     // 5. add+layerNorm
-    concat->addMatrix(inputQ, output);
+    auto add_out = new MatrixHalf(inputQ->getBatch(), inputQ->getRow(), inputQ->getCol(), true);
+    concat->addMatrix(inputQ, add_out);
+    auto ln_out = new MatrixHalf(inputQ->getBatch(), inputQ->getRow(), inputQ->getCol(), true);
+    add_out->layerNorm(ln_out);
+
+    ln_out->copyTo(output);
 
     // 6. free
     concat->free_matrix();
     attention_out->free_matrix();
-
-}
-
-void Attention::initW() {
-    Wq = new MatrixHalf(1, embedding, embedding, true, 0.05);
-    Wk = new MatrixHalf(1, embedding, embedding, true, 0.05);
-    Wv = new MatrixHalf(1, embedding, embedding, true, 0.05);
-    W0 = new MatrixHalf(1, embedding, embedding, true, 0.05);
+    add_out->free_matrix();
+    ln_out->free_matrix();
+    Wq->free_matrix();
+    Wk->free_matrix();
+    Wv->free_matrix();
+    W0->free_matrix();
 }
 
 void Attention::attn(half *Q, half *K, half *V, half *out, int batch, int max_len, int ebd) {
@@ -79,12 +101,6 @@ void Attention::attn(half *Q, half *K, half *V, half *out, int batch, int max_le
     cudaFree(ans);
 }
 
-void Attention::free() {
-    W0->free_matrix();
-    Wq->free_matrix();
-    Wk->free_matrix();
-    Wv->free_matrix();
-}
 
 void Attention::make_mask1(int max_len, int *out) {
     // 从主对角线开始 隔两个对角线的值不mask

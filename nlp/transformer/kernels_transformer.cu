@@ -15,7 +15,9 @@ bool check_sparse(half *item, int row, int col) {
                     zero_cnt++;
                 }
             }
-            if (zero_cnt < 2) return false;
+            if (zero_cnt < 2) {
+                return false;
+            }
         }
     }
     return true;
@@ -91,16 +93,31 @@ __global__ void matrix_add(half *A, half *B, half *C, int size) {
     }
 }
 
-__global__ void layerNorm_kernel(half *feature, int batch, int max_len, int size) {
-    // 每个线程处理
-    return;
+__global__ void layerNorm_kernel(half *feature, int batch, int max_len, int size, half *means, half *std, half *out) {
+    int blx = blockIdx.x, thx = threadIdx.x;
+    out[blx * size + thx] = (float)(feature[blx * size + thx] - means[blx]) / ((float)std[blx] + 0.0001);
+}
+
+__global__ void getMeanAndStd(half *feature, int batch, int max_len, int size, half *means, half *std) {
+    // 每个线程处理 size个元素
+    int blx = blockIdx.x;
+    int thx = threadIdx.x;
+    float mean = 0, mean_2 = 0;
+    for (int i = 0; i < size; i++) {
+        float item = feature[blx * max_len * size + thx * size + i];
+        mean += item;
+        mean_2 += item * item;
+    }
+    mean /= size;
+    mean_2 /= size;
+    means[blx * max_len + thx] = mean;
+    std[blx * max_len + thx] = sqrt(mean_2 - mean * mean);
 }
 
 
 void cublas_gemm_device(const half *d_A, const half *d_B, int inputM, int inputK, int inputN, half *output) {
     // 因为为列存储，为了方便，设置转置
     cublasHandle_t cublasH = nullptr;
-    //cudaStream_t stream = nullptr;
 
     const int m = inputM;
     const int n = inputN;
@@ -120,9 +137,6 @@ void cublas_gemm_device(const half *d_A, const half *d_B, int inputM, int inputK
     /* step 1: create cublas handle, bind a stream */
     CHECK_CUBLAS( cublasCreate(&cublasH) );
 
-    //CHECK_CUDA( cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking) );
-    //CHECK_CUBLAS( cublasSetStream(cublasH, stream) );
-
     /* step 2: copy data to device */
     CHECK_CUDA( cudaMalloc(&d_C, sizeof(half) * m * n) );
 
@@ -137,19 +151,66 @@ void cublas_gemm_device(const half *d_A, const half *d_B, int inputM, int inputK
     /* step 4: copy data to host */
     //CHECK_CUDA( cudaMemcpyAsync(output, d_C, sizeof(half) * m * n, cudaMemcpyDeviceToDevice, stream));
 
-    //CHECK_CUDA( cudaStreamSynchronize(stream) );
-
     /* free resources */
-    //CHECK_CUDA( cudaFree(d_A) );
-    //CHECK_CUDA( cudaFree(d_B) );
     CHECK_CUDA( cudaFree(d_C) );
-    // CHECK_CUDA( cudaFree(d_C_T) );
-
     CHECK_CUBLAS( cublasDestroy(cublasH) );
 
-    //CHECK_CUDA( cudaStreamDestroy(stream) );
+}
 
-    //CHECK_CUDA( cudaDeviceReset() );
+void cublas_gemm_batches_device(const half *d_A, const half *d_B, int batch, int inputM, int inputK, int inputN, half *output) {
+    const int m = inputM;
+    const int n = inputN;
+    const int k = inputK;
+    const int lda = k; // 因为转置了 因此ld代表列数
+    const int ldb = n;
+    const int ldc = m; // c的ld都是m
+
+    const half alpha = 1.0;
+    const half beta = 0.0;
+
+    half *d_C = nullptr;
+
+    cublasOperation_t transa = CUBLAS_OP_T;
+    cublasOperation_t transb = CUBLAS_OP_T;
+
+    /* step 1: create cublas handle, bind a stream */
+    cublasHandle_t handle = nullptr;
+    CHECK_CUBLAS( cublasCreate(&handle) );
+
+    /* step 2: copy data to device */
+    CHECK_CUDA( cudaMalloc(&d_C, sizeof(half) * m * n) );
+
+    /* step 3: compute */
+    half **arrA, **arrB, **arrC;
+    CHECK_CUDA(cudaMalloc(&arrA, sizeof(half*) * batch))
+    CHECK_CUDA(cudaMalloc(&arrB, sizeof(half*) * batch))
+    CHECK_CUDA(cudaMalloc(&arrC, sizeof(half*) * batch))
+    for (int i = 0; i < batch; i++) {
+        CHECK_CUDA(cudaMalloc(&arrA[i], sizeof(half) * m * k))
+        CHECK_CUDA(cudaMalloc(&arrB[i], sizeof(half) * k * n))
+        CHECK_CUDA(cudaMalloc(&arrC[i], sizeof(half) * m * n))
+        CHECK_CUDA(cudaMemcpy(arrA[i], d_A + batch * m * k, sizeof(half) * m * k, cudaMemcpyDeviceToDevice))
+        CHECK_CUDA(cudaMemcpy(arrB[i], d_B + batch * n * k, sizeof(half) * n * k, cudaMemcpyDeviceToDevice))
+        // CHECK_CUDA(cudaMemcpy(arrC[i], d_A + batch * m * k, sizeof(half) * m * k, cudaMemcpyDeviceToDevice))
+    }
+    CHECK_CUBLAS(cublasHgemmBatched(handle, transa, transb, m, n, k, &alpha, arrA, lda, arrB, ldb, &beta, arrC, ldc, batch))
+
+    // transpose
+//    dim3 grid(m / 32 + 1, n / 32 + 1);
+//    dim3 block(32, 32);
+//    transpose_half<<<grid, block>>>(d_C, output, m, n);
+
+    /* step 4: copy data to host */
+    //CHECK_CUDA( cudaMemcpyAsync(output, d_C, sizeof(half) * m * n, cudaMemcpyDeviceToDevice, stream));
+
+
+    /* free resources */
+    CHECK_CUDA( cudaFree(d_C) );
+    CHECK_CUDA( cudaFree(arrA) );
+    CHECK_CUDA( cudaFree(arrB) );
+    CHECK_CUDA( cudaFree(arrC) );
+    CHECK_CUBLAS( cublasDestroy(handle) );
+
 }
 
 void padCudaMemcpy2D(const half* src, int row, int col, half *dest, int row_padding, int col_padding) {
@@ -237,7 +298,7 @@ void sparse_mma_gemm_device(const half *inputA, const half *inputB, int inputM, 
         if (*is_valid == 1) {
             //if (!check_sparse(dA, m, k)) printf("no fit\n");
             //else printf("fit\n");
-            //printf("!!!! The matrix need to be pruned. valid: %d\n", *is_valid);
+            printf("!!!! The matrix need to be pruned. valid: %d\n", *is_valid);
             CHECK_CUSPARSE(cusparseLtSpMMAPrune(&handle, &matmul, dA, dA, CUSPARSELT_PRUNE_SPMMA_TILE, stream))
         }
     }

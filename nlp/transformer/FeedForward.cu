@@ -4,26 +4,26 @@
 
 #include "FeedForward.cuh"
 
-void FeedForward::init() {
-    W1 = new MatrixHalf(1, d_model, d_ff, true, 0.03);
-    W2 = new MatrixHalf(1, d_ff, d_model, true, 0.02);
-}
-
-void FeedForward::forward(MatrixHalf *input, MatrixHalf *output) {
+void FeedForward::forward(MatrixHalf *input, MatrixHalf *output, int layer, bool is_encoder) {
+    std::string path_ff = is_encoder ? "../../data/transformer/wff_en" + std::to_string(layer) :
+                          "../../data/transformer/wff_de" + std::to_string(layer);
+    std::string path_m = is_encoder ? "../../data/transformer/wm_en" + std::to_string(layer) :
+                          "../../data/transformer/wm_de" + std::to_string(layer);
     // 1. 声明所需变量
     auto ff = new MatrixHalf(input->getBatch(), input->getRow(), d_ff, true);
     auto mo = new MatrixHalf(input->getBatch(), input->getRow(), d_model, true);
     // 第一个线性层
-    input->gemm(this->W1, ff);
+    auto Wff = new MatrixHalf(1, d_model, d_ff, true, path_ff);
+    input->gemm(Wff, ff);
     // relu
     ff->relu();
     // 第二个线性层
-    ff->gemm(W2, mo);
+    auto Wm = new MatrixHalf(1, d_model, d_ff, true, path_m);
+    ff->gemm(Wm, mo);
     // Add & LayerNorm
     mo->addMatrix(input, output);
+    // free
+    Wff->free_matrix();
+    Wm->free_matrix();
 }
 
-void FeedForward::free() {
-    W1->free_matrix();
-    W2->free_matrix();
-}

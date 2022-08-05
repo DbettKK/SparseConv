@@ -54,11 +54,11 @@ def check_spmma(kernel, row, col):
 
 def ge_filter(kernel_size, conv_num, path):
     filter = make_sparse_kernel(kernel_size[0], get_total_size(kernel_size) // kernel_size[0], 1, 'float16')
-    if get_total_size(kernel_size) // kernel_size[0] % 8 == 0:
-        if check_spmma(filter, kernel_size[0], get_total_size(kernel_size) // kernel_size[0]) is False:
-            print("conv num:", conv_num, "\tfalse\n")
-        else:
-            print("conv num:", conv_num, "\ttrue\n")
+    # if get_total_size(kernel_size) // kernel_size[0] % 8 == 0:
+    #     if check_spmma(filter, kernel_size[0], get_total_size(kernel_size) // kernel_size[0]) is False:
+    #         print("conv num:", conv_num, "\tfalse\n")
+    #     else:
+    #         print("conv num:", conv_num, "\ttrue\n")
     # print(filter)
     filter.tofile(path + '/filter' + str(conv_num))
 
@@ -69,21 +69,21 @@ def resnet50():
     W_fc_size = [2048, 1000]
     kernel_size_x = [
         [256, 64, 1, 1],
-        [256, 64, 1, 1],
-        [256, 64, 1, 1],
+        [256, 256, 1, 1],
+        [256, 256, 1, 1],
         [512, 256, 1, 1],
-        [512, 256, 1, 1],
-        [512, 256, 1, 1],
-        [512, 256, 1, 1],
+        [512, 512, 1, 1],
+        [512, 512, 1, 1],
+        [512, 512, 1, 1],
         [1024, 512, 1, 1],
-        [1024, 512, 1, 1],
-        [1024, 512, 1, 1],
-        [1024, 512, 1, 1],
-        [1024, 512, 1, 1],
-        [1024, 512, 1, 1],
+        [1024, 1024, 1, 1],
+        [1024, 1024, 1, 1],
+        [1024, 1024, 1, 1],
+        [1024, 1024, 1, 1],
+        [1024, 1024, 1, 1],
         [2048, 1024, 1, 1],
-        [2048, 1024, 1, 1],
-        [2048, 1024, 1, 1],
+        [2048, 2048, 1, 1],
+        [2048, 2048, 1, 1],
     ]
     kernel_sizes = [
         [64, 3, 7, 7],

@@ -29,8 +29,14 @@ __global__ void relu_half(half *item, int row, int col);
 
 __global__ void matrix_add(half *A, half *B, half *C, int size);
 
+__global__ void layerNorm_kernel(half *feature, int batch, int max_len, int size, half *means, half *std, half *out);
+
+__global__ void getMeanAndStd(half *feature, int batch, int max_len, int size, half *means, half *std);
+
 /* 得到的 output 为转置后的 */
 void cublas_gemm_device(const half *d_A, const half *d_B, int inputM, int inputK, int inputN, half *output);
+
+void cublas_gemm_batches_device(const half *d_A, const half *d_B, int batch, int inputM, int inputK, int inputN, half *output);
 
 void padCudaMemcpy2D(const half* src, int row, int col, half *dest, int row_padding, int col_padding);
 

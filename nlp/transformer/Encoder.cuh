@@ -15,8 +15,7 @@ class Encoder {
     FeedForward *mlp;
 public:
     void init();
-    void free();
-    void forward(MatrixHalf *input, MatrixHalf *output);
+    void forward(MatrixHalf *input, MatrixHalf *output, int layer);
     void forwardN(MatrixHalf *input, MatrixHalf *output, int N);
 };
 

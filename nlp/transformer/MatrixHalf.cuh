@@ -8,6 +8,7 @@
 #include <cuda_fp16.h>
 #include <string>
 #include <iostream>
+#include <fstream>
 #include "kernels_transformer.cuh"
 
 
@@ -21,6 +22,8 @@ public:
     MatrixHalf(int batch, int row, int col, bool is_device);
 
     MatrixHalf(int batch, int row, int col, bool is_device, half init);
+
+    MatrixHalf(int batch, int row, int col, bool is_device, std::string path);
 
     MatrixHalf(half *matrix, int batch, int row, int col);
 
@@ -61,6 +64,8 @@ public:
     void addMatrix(MatrixHalf *add, MatrixHalf *out);
 
     void free_matrix();
+
+    void layerNorm(MatrixHalf *out);
 };
 
 

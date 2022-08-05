@@ -16,6 +16,7 @@ void test_resnet() {
 }
 
 int main() {
+    // todo: 多batch 各层实验验证正确性
     test_resnet();
     return 0;
 }

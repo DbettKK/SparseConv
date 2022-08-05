@@ -9,17 +9,11 @@
 #include "MatrixHalf.cuh"
 
 class Attention {
-    MatrixHalf *Wq, *Wk, *Wv;
-    MatrixHalf *W0;
     int heads = 8;
     int embedding = 512;
     int d_ff = 2048, d_model = 512;
 public:
-    void forward(MatrixHalf *inputQ, MatrixHalf *inputK, MatrixHalf *inputV, MatrixHalf *output);
-
-    void initW();
-
-    void free();
+    void forward(MatrixHalf *inputQ, MatrixHalf *inputK, MatrixHalf *inputV, MatrixHalf *output, int layer, int which_part);
 
     void attn(half *Q, half *K, half *V, half *out, int batch, int max_len, int ebd);
 
