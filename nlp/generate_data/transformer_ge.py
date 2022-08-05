@@ -2,6 +2,7 @@ import numpy as np
 
 d_model = 512
 d_ff = 2048
+max_sen_len = 16
 dtype = 'float16'
 N = 6
 
@@ -10,6 +11,12 @@ def transformer():
     data_path = '../../data/transformer'
     # Wq,k,v: [d_model, d_model] W0: [d_model, d_model]
     # Wff: [d_model, d_ff], W_model: [d_ff, d_model]
+    # Webd: [max_sen_len, d_model]
+    # W_last: [d_model, max_sen_len]
+    Webd = np.random.uniform(0, 1, (max_sen_len, d_model)).astype(dtype)
+    W_last = np.random.uniform(0, 1, (d_model, max_sen_len)).astype(dtype)
+    Webd.tofile(data_path + '/w_ebd')
+    W_last.tofile(data_path + '/w_last')
     for i in range(N):
         en_or_de = 'en'
         Wq = np.random.uniform(0, 1, (d_model, d_model)).astype(dtype)

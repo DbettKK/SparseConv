@@ -91,7 +91,7 @@ void test_gemm() {
 
 void test_trans() {
     auto t = new Transformer();
-    t->init(16, 512);
+    t->init(2, 16, 512);
     int *en_in = new int[2 * 16];
     int *de_in = new int[2 * 16];
     for (int i = 0; i < 2 * 16; i++) en_in[i] = i / 2 + 1;
@@ -101,21 +101,6 @@ void test_trans() {
 }
 
 int main() {
-    auto a = new Attention();
-
-    auto mh = new MatrixHalf(1, 16, 512, true, 0.05);
-    //
-    //mh->print("input:", true);
-    for (int i = 0; i < 1; i++) {
-        //auto t = new CudaTime();
-        //t->initAndStart();
-        auto tmp_out = new MatrixHalf(1, 16, 512, true);
-        //a->forward(mh, tmp_out);
-        mh = tmp_out;
-        mh->print("====", true);
-        //cusparse_gemm_blocked_device_test();
-        //cusparse_gemm_csr_device_test();
-        //printf("time: %fms\n", t->endAndGetTime());
-    }
-
+    test_trans();
+    return 0;
 }

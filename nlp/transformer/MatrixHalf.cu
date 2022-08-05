@@ -104,19 +104,25 @@ void MatrixHalf::softmax() {
 void MatrixHalf::print(const std::string& msg, bool is_device) {
     std::cout << msg << std::endl;
     if (is_device) {
-        half *tmp = new half[row * col];
-        CHECK_CUDA(cudaMemcpy(tmp, matrix, sizeof(half) * row * col, cudaMemcpyDeviceToHost));
-        for (int i = 0; i < row; i++) {
-            for (int j = 0; j < col; j++) {
-                printf("%.2f ", __half2float(tmp[i * col + j]));
+        half *tmp = new half[batch * row * col];
+        CHECK_CUDA(cudaMemcpy(tmp, matrix, sizeof(half) * batch * row * col, cudaMemcpyDeviceToHost));
+        for (int b = 0; b < batch; b++) {
+            for (int i = 0; i < row; i++) {
+                for (int j = 0; j < col; j++) {
+                    printf("%.2f ", __half2float(tmp[b * row * col + i * col + j]));
+                }
+                printf("\n");
             }
             printf("\n");
         }
         delete[] tmp;
     } else {
-        for (int i = 0; i < row; i++) {
-            for (int j = 0; j < col; j++) {
-                printf("%.2f ", __half2float(matrix[i * col + j]));
+        for (int b = 0; b < batch; b++) {
+            for (int i = 0; i < row; i++) {
+                for (int j = 0; j < col; j++) {
+                    printf("%.2f ", __half2float(matrix[b * row * col + i * col + j]));
+                }
+                printf("\n");
             }
             printf("\n");
         }
@@ -154,11 +160,13 @@ void MatrixHalf::relu() {
 }
 
 void MatrixHalf::addMatrix(MatrixHalf *add, MatrixHalf *out) {
-    if (this->row != add->row || this->col != add->col) {
+    if (this->batch != add->batch || this->row != add->row || this->col != add->col) {
         printf("Error: matrix add need to be the same shape!\n");
         return;
     }
-    matrix_add<<<batch, row * col>>>(matrix, add->matrix, out->matrix, batch * row * col);
+    //this->print("A:", true);
+    //add->print("B:", true);
+    matrix_add<<<batch * col * row / 32 + 1, 32>>>(matrix, add->matrix, out->matrix, batch * row * col);
 }
 
 void MatrixHalf::copyTo(MatrixHalf *out) {

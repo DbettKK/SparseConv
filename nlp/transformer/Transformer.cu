@@ -5,40 +5,51 @@
 #include "Transformer.cuh"
 
 void Transformer::PositionalEncoding(MatrixHalf *in, MatrixHalf *out) {
+    //pe->print("pe:", true);
     in->addMatrix(pe, out);
 }
 
-void Transformer::make_pe(int max_len, int d_model, MatrixHalf *out) {
+void Transformer::make_pe(int batch, int max_len, int d_model, MatrixHalf *out) {
     auto div_term = new double[d_model / 2 + 1];
     for (int i = 0; i < d_model / 2 + 1; i++) {
         div_term[i] = exp(i * 2 * -log(10000.0) / d_model);
+    }
+    auto tmp_pe = new double[max_len * (d_model / 2 + 1)];
+    for (int i = 0; i < max_len; i++) {
+        for (int j = 0; j < d_model / 2 + 1; j++) {
+            tmp_pe[i * (d_model / 2 + 1) + j] = (i + 1) * div_term[j];
+        }
     }
     half *pe = new half[max_len * d_model];
     for (int i = 0; i < max_len; i++) {
         for (int j = 0; j < d_model; j++) {
             int idx = i * d_model + j;
             if (j % 2 == 0) {
-                pe[idx] = sin(div_term[j / 2]);
+                pe[idx] = sin(tmp_pe[i * (d_model / 2 + 1) + j / 2]);
             } else {
-                pe[idx] = cos(div_term[j / 2]);
+                pe[idx] = cos(tmp_pe[i * (d_model / 2 + 1) + j / 2]);
             }
         }
     }
     half *d_pe;
-    cudaMalloc(&d_pe, sizeof(half) * max_len * d_model);
-    cudaMemcpy(d_pe, pe, sizeof(half) * max_len * d_model, cudaMemcpyHostToDevice);
+    cudaMalloc(&d_pe, sizeof(half) * batch * max_len * d_model);
+    for (int i = 0; i < batch; i++) {
+        cudaMemcpy(d_pe + i * max_len * d_model, pe, sizeof(half) * max_len * d_model, cudaMemcpyHostToDevice);
+    }
     out->setMatrix(d_pe);
 
     delete[] div_term;
+    delete[] tmp_pe;
     delete[] pe;
 }
 
-void Transformer::init(int max_len, int d_model) {
-    pe = new MatrixHalf(1, max_len, d_model, true);
+void Transformer::init(int batch, int max_len, int d_model) {
+    pe = new MatrixHalf(batch, max_len, d_model, true);
     mask1 = new MatrixHalf(1, max_len, max_len, true);
-    make_pe(max_len, d_model, pe);
+    make_pe(batch, max_len, d_model, pe);
     //make_mask1(max_len, mask1);
-    W_ebd = new MatrixHalf(1, max_len, d_model, true, 1);
+    W_ebd = new MatrixHalf(1, max_len, d_model, true, "../../data/transformer/w_ebd");
+    W_last = new MatrixHalf(1, d_model, max_len, true, "../../data/transformer/w_last");
     encoder = new Encoder();
     encoder->init();
     decoder = new Decoder();
@@ -95,14 +106,20 @@ void Transformer::forward(int *en_in, int en_batch, int en_max_len, int *de_in, 
     auto de_ebd_out = new MatrixHalf(de_batch, de_max_len, d_model, true);
     Embedding(en_in, en_batch, en_max_len, en_ebd_out);
     Embedding(de_in, de_batch, de_max_len, de_ebd_out);
+    // en_ebd_out->print("encoder ebd out:", true);
+
     // 2. position encoding
     auto en_pe_out = new MatrixHalf(en_batch, en_max_len, d_model, true);
     auto de_pe_out = new MatrixHalf(de_batch, de_max_len, d_model, true);
     PositionalEncoding(en_ebd_out, en_pe_out);
     PositionalEncoding(de_ebd_out, de_pe_out);
+    // en_pe_out->print("pe out:", true);
+
     // 3. encoder
     auto encoder_out = new MatrixHalf(en_batch, en_max_len, d_model, true);
     encoder->forwardN(en_pe_out, encoder_out, 6);
+    encoder_out->print("encoder out:", true);
+
     // 4. decoder
     auto decoder_out = new MatrixHalf(de_batch, de_max_len, d_model, true);
     decoder->forwardN(de_pe_out, encoder_out, decoder_out, 6);

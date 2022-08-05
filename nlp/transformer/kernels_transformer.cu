@@ -89,7 +89,7 @@ __global__ void relu_half(half *item, int row, int col) {
 __global__ void matrix_add(half *A, half *B, half *C, int size) {
     int idx = threadIdx.x + blockDim.x * blockIdx.x;
     if (idx < size) {
-        C[idx] = A[idx] +B[idx];
+        C[idx] = __half2float(A[idx]) + __half2float(B[idx]);
     }
 }
 
