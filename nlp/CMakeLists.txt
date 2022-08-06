@@ -20,4 +20,5 @@ target_link_libraries(Nlp
         PUBLIC cusparseLt
         PUBLIC cublas
         PUBLIC cusparse
+        PUBLIC cudnn
         )

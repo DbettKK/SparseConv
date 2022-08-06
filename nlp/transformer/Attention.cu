@@ -45,20 +45,18 @@ void Attention::forward(MatrixHalf *inputQ, MatrixHalf *inputK, MatrixHalf *inpu
     // 3. 多头注意力
     auto concat = new MatrixHalf(inputQ->getBatch(), inputQ->getRow(), inputQ->getCol(), true);
     attn(outQ->getMatrix(), outK->getMatrix(), outV->getMatrix(), concat->getMatrix(),
-         inputQ->getBatch(), inputQ->getRow(), inputQ->getCol());
-
+         inputQ->getBatch(), inputQ->getRow(), inputQ->getCol(), which_part == 3);
+    // concat->print("concat", true);
     // 4. 再一个线性层 运算结果concat并和 W0 运算得到输出
     auto attention_out = new MatrixHalf(inputQ->getBatch(), inputQ->getRow(), inputQ->getCol(), true);
     auto W0 = new MatrixHalf(1, embedding, embedding, true, "../../data/transformer/w0_" + path_suffix);
     concat->gemm_batches(W0, attention_out, true);
-    //concat->print("concat:", true);
 
     // 5. add+layerNorm
     auto add_out = new MatrixHalf(inputQ->getBatch(), inputQ->getRow(), inputQ->getCol(), true);
-    concat->addMatrix(inputQ, add_out);
+    attention_out->addMatrix(inputQ, add_out);
     auto ln_out = new MatrixHalf(inputQ->getBatch(), inputQ->getRow(), inputQ->getCol(), true);
     add_out->layerNorm(ln_out);
-
     ln_out->copyTo(output);
 
     // 6. free
@@ -72,28 +70,30 @@ void Attention::forward(MatrixHalf *inputQ, MatrixHalf *inputK, MatrixHalf *inpu
     W0->free_matrix();
 }
 
-void Attention::attn(half *Q, half *K, half *V, half *out, int batch, int max_len, int ebd) {
-    half *transK, *ans;
-    int *mask;
-    cudaMalloc(&mask, sizeof(int) * max_len * max_len);
-    this->make_mask1(max_len, mask);
+void Attention::attn(half *Q, half *K, half *V, half *out, int batch, int max_len, int ebd, bool isMasked) {
+    half *transK, *ans, *softmax_out;
     cudaMalloc(&transK, sizeof(half) * max_len * ebd / heads);
     cudaMalloc(&ans, sizeof(half) * max_len * max_len);
-    dim3 block(max_len, ebd / heads);
+    cudaMalloc(&softmax_out, sizeof(half) * max_len * max_len);
+    dim3 grid(max_len / 32 + 1, ebd / heads / 32 + 1);
+    dim3 block(32, 32);
     for (int b = 0; b < batch; b++) {
         for (int i = 0; i < heads; i++) {
             int each_block = (b * heads + i) * max_len * ebd / heads;
             // 1. K转置
-            transpose_half<<<1, block>>>(K + each_block, transK, max_len, ebd / heads);
-            // 2. QK^T
-            cublas_gemm_device(Q + each_block, transK, max_len, ebd / heads, max_len, ans);
+            transpose_half<<<grid, block>>>(K + each_block, transK, max_len, ebd / heads);
+            // 2. QK^T / sqrt(d_k)
+            cublas_gemm_device_scale(Q + each_block, transK, max_len, ebd / heads, max_len, 1.0f / (float)sqrt(ebd), ans);
+            //MatrixHalf::print_device(ans, max_len, max_len);
             // 3. mask
-            mask_matrix_gpu<<<max_len, max_len>>>(ans, mask, max_len, max_len);
+            mask_matrix_gpu<<<max_len, max_len>>>(ans, isMasked ? mask2 : mask1, max_len, max_len);
+            //MatrixHalf::print_device(ans, max_len, max_len);
             // 4. softmax
-            softmax_half<<<max_len, max_len>>>(ans, max_len, max_len);
-            // MatrixHalf::print_device(ans, max_len, max_len);
+            softmax_cudnn_trans(ans, max_len, max_len, 1, 1, softmax_out);
+            //softmax_half<<<max_len, max_len>>>(ans, max_len, max_len);
             // 5. 和V乘
-            cublas_gemm_device(ans, V + each_block, max_len, max_len, ebd / heads, out + each_block);
+            //sparse_mma_gemm_device(softmax_out, V + each_block, max_len, max_len, ebd / heads, true, out + each_block);
+            cublas_gemm_device(softmax_out, V + each_block, max_len, max_len, ebd / heads, out + each_block);
         }
     }
     // free
@@ -116,5 +116,33 @@ void Attention::make_mask1(int max_len, int *out) {
         }
     }
     cudaMemcpy(out, h_mask, sizeof(int) * max_len * max_len, cudaMemcpyHostToDevice);
+}
+
+void Attention::make_mask2(int max_len, int *out) {
+    // 从主对角线开始 隔两个对角线的值不mask
+    int *h_mask = new int[max_len * max_len];
+    memset(h_mask, 0, sizeof(int) * max_len * max_len);
+    int max_num = (max_len - 1) / 3;
+    for (int i = 0; i < max_len; i++) {
+        for (int j = 0; j < max_len; j++) {
+            for (int k = 0; k <= max_num; k++) {
+                if (i == j + k * 3) h_mask[i * max_len + j] = 1;
+                if (j == i + k * 3) h_mask[i * max_len + j] = 1;
+            }
+        }
+    }
+    for (int i = 0; i < max_len; i++) {
+        for (int j = 0; j < max_len; j++) {
+            if (j > i) h_mask[i * max_len + j] = 0;
+        }
+    }
+    cudaMemcpy(out, h_mask, sizeof(int) * max_len * max_len, cudaMemcpyHostToDevice);
+}
+
+Attention::Attention(int max_len) {
+    CHECK_CUDA(cudaMalloc(&mask1, sizeof(int) * max_len * max_len))
+    CHECK_CUDA(cudaMalloc(&mask2, sizeof(int) * max_len * max_len))
+    make_mask1(max_len, mask1);
+    make_mask2(max_len, mask2);
 }
 

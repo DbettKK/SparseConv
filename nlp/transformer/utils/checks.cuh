@@ -39,4 +39,14 @@
     }                                                                          \
 }
 
+#define CHECK_CUDNN(func)                                                      \
+{                                                                              \
+    cudnnStatus_t status = (func);                                             \
+    if (status != CUDNN_STATUS_SUCCESS) {                                      \
+        printf("CUDNN failed at line %d with error: %s (%d)\n",                \
+               __LINE__, cudnnGetErrorString(status), status);                 \
+        return ;                                                               \
+    }                                                                          \
+}
+
 #endif //SPARSECONV_CHECKS_CUH

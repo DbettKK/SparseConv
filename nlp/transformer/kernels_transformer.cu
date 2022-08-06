@@ -24,7 +24,7 @@ bool check_sparse(half *item, int row, int col) {
 }
 
 __global__ void softmax_half(half *item, const int row, const int col) {
-    __shared__ half mem[64][256]; // 记录每一列
+    __shared__ float mem[64][64]; // 记录每一列
     const int blx = blockIdx.x;
     const int thx = threadIdx.x;
     if (thx < row && blx < col) {
@@ -32,7 +32,7 @@ __global__ void softmax_half(half *item, const int row, const int col) {
     }
     __syncthreads();
     if (thx < row && blx < col) {
-        half max = -65504;
+        float max = -65504;
         for (int i = 0; i < row; i++) {
             if (max <= mem[i][blx]) max = mem[i][blx];
         }
@@ -73,7 +73,7 @@ __global__ void gemm_simple(half *A, half *B, int m, int k, int n, half *out) {
 __global__ void mask_matrix_gpu(half *tgt, const int *mask_mat, int row, int col) {
     const int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < row * col) {
-        if (mask_mat[idx] == 0) tgt[idx] = 0;
+        if (mask_mat[idx] == 0) tgt[idx] = -40000;
     }
 }
 
@@ -142,6 +142,50 @@ void cublas_gemm_device(const half *d_A, const half *d_B, int inputM, int inputK
 
     /* step 3: compute */
     CHECK_CUBLAS( cublasHgemm(cublasH, transa, transb, m, n, k, &alpha, d_A, lda, d_B, ldb, &beta, d_C, ldc) );
+
+    // transpose
+    dim3 grid(m / 32 + 1, n / 32 + 1);
+    dim3 block(32, 32);
+    transpose_half<<<grid, block>>>(d_C, output, m, n);
+
+    /* step 4: copy data to host */
+    //CHECK_CUDA( cudaMemcpyAsync(output, d_C, sizeof(half) * m * n, cudaMemcpyDeviceToDevice, stream));
+
+    /* free resources */
+    CHECK_CUDA( cudaFree(d_C) );
+    CHECK_CUBLAS( cublasDestroy(cublasH) );
+
+}
+
+void cublas_gemm_device_scale(const half *d_A, const half *d_B, int inputM, int inputK, int inputN, float scale, half *output) {
+    // 因为为列存储，为了方便，设置转置
+    cublasHandle_t cublasH = nullptr;
+
+    const int m = inputM;
+    const int n = inputN;
+    const int k = inputK;
+    const int lda = k; // 因为转置了 因此ld代表列数
+    const int ldb = n;
+    const int ldc = m; // c的ld都是m
+
+    const half alpha = 1.0;
+    const half beta = 0.0;
+
+    half *d_C = nullptr;
+
+    cublasOperation_t transa = CUBLAS_OP_T;
+    cublasOperation_t transb = CUBLAS_OP_T;
+
+    /* step 1: create cublas handle, bind a stream */
+    CHECK_CUBLAS( cublasCreate(&cublasH) );
+
+    /* step 2: copy data to device */
+    CHECK_CUDA( cudaMalloc(&d_C, sizeof(half) * m * n) );
+
+    /* step 3: compute */
+    CHECK_CUBLAS( cublasHgemm(cublasH, transa, transb, m, n, k, &alpha, d_A, lda, d_B, ldb, &beta, d_C, ldc) );
+
+    CHECK_CUBLAS( cublasScalEx(cublasH, m * n, &scale, CUDA_R_32F, d_C, CUDA_R_16F, 1, CUDA_R_32F) )
 
     // transpose
     dim3 grid(m / 32 + 1, n / 32 + 1);
@@ -639,5 +683,34 @@ void cusparse_gemm_csr_device_test() {
     CHECK_CUDA( cudaFree(dA_values) )
     CHECK_CUDA( cudaFree(dB) )
     CHECK_CUDA( cudaFree(dC) )
+}
+
+void softmax_cudnn_trans(half *feature, int batch, int channel, int width, int height, half *out) {
+    // handle
+    cudnnHandle_t handle;
+    CHECK_CUDNN(cudnnCreate(&handle))
+
+    float alpha = 1.0, beta = 0.0;
+
+    // input
+    cudnnTensorDescriptor_t input_descriptor;
+    CHECK_CUDNN(cudnnCreateTensorDescriptor(&input_descriptor))
+    CHECK_CUDNN(cudnnSetTensor4dDescriptor(input_descriptor, CUDNN_TENSOR_NCHW, CUDNN_DATA_HALF,
+                                           batch, channel, height, width)) // n, c, h,
+    // output
+    cudnnTensorDescriptor_t output_descriptor;
+    CHECK_CUDNN(cudnnCreateTensorDescriptor(&output_descriptor))
+    CHECK_CUDNN(cudnnSetTensor4dDescriptor(output_descriptor, CUDNN_TENSOR_NCHW, CUDNN_DATA_HALF,
+                                           batch, channel, height, width))
+
+    // softmax
+    CHECK_CUDNN(cudnnSoftmaxForward(handle, CUDNN_SOFTMAX_ACCURATE, CUDNN_SOFTMAX_MODE_CHANNEL, &alpha,
+                                    input_descriptor, feature, &beta, output_descriptor, out))
+
+    // free
+    CHECK_CUDNN(cudnnDestroyTensorDescriptor(input_descriptor))
+    CHECK_CUDNN(cudnnDestroyTensorDescriptor(output_descriptor))
+
+    CHECK_CUDNN(cudnnDestroy(handle))
 }
 

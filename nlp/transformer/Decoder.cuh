@@ -13,7 +13,7 @@ class Decoder {
     Attention *self_attn, *src_attn;
     FeedForward *mlp;
 public:
-    void init();
+    void init(int max_len);
     void forward(MatrixHalf *input, MatrixHalf *encoder_in, MatrixHalf *output, int layer);
     void forwardN(MatrixHalf *input, MatrixHalf *encoder_in, MatrixHalf *output, int N);
 };

@@ -90,14 +90,19 @@ void test_gemm() {
 }
 
 void test_trans() {
-    auto t = new Transformer();
+    auto t = new Transformer(2, 16, 1, 512);
     t->init(2, 16, 512);
     int *en_in = new int[2 * 16];
     int *de_in = new int[2 * 16];
     for (int i = 0; i < 2 * 16; i++) en_in[i] = i / 2 + 1;
     for (int i = 0; i < 2 * 16; i++) de_in[i] = i / 2 + 1;
-    auto out = new MatrixHalf(2, 16, 512, true);
-    t->forward(en_in, 2, 16, de_in, 2, 16, 512, out);
+    auto out = new MatrixHalf(2, 1, 1, true);
+    for (int i = 0; i < 3; i++) {
+        auto trans_t = new CudaTime();
+        trans_t->initAndStart();
+        t->forward(en_in, de_in, out);
+        printf("trans time: %fms\n", trans_t->endAndGetTime());
+    }
 }
 
 int main() {

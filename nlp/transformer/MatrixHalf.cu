@@ -146,7 +146,7 @@ void MatrixHalf::free_matrix() {
     CHECK_CUDA(cudaMemcpy(tmp, item, sizeof(half) * row * col, cudaMemcpyDeviceToHost));
     for (int i = 0; i < row; i++) {
         for (int j = 0; j < col; j++) {
-            printf("%.2f ", __half2float(tmp[i * col + j]));
+            printf("%.4f ", __half2float(tmp[i * col + j]));
         }
         printf("\n");
     }

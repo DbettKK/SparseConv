@@ -14,7 +14,7 @@ class Encoder {
     Attention *attn;
     FeedForward *mlp;
 public:
-    void init();
+    void init(int max_len);
     void forward(MatrixHalf *input, MatrixHalf *output, int layer);
     void forwardN(MatrixHalf *input, MatrixHalf *output, int N);
 };

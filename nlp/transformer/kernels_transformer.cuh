@@ -6,6 +6,7 @@
 #define SPARSECONV_KERNELS_TRANSFORMER_CUH
 
 #include<cuda_fp16.h>
+#include <cudnn.h>
 #include <iostream>
 #include<cmath>
 #include "utils/checks.cuh"
@@ -36,6 +37,8 @@ __global__ void getMeanAndStd(half *feature, int batch, int max_len, int size, h
 /* 得到的 output 为转置后的 */
 void cublas_gemm_device(const half *d_A, const half *d_B, int inputM, int inputK, int inputN, half *output);
 
+void cublas_gemm_device_scale(const half *d_A, const half *d_B, int inputM, int inputK, int inputN, float scale, half *output);
+
 void cublas_gemm_batches_device(const half *d_A, const half *d_B, int batch, int inputM, int inputK, int inputN, half *output);
 
 void padCudaMemcpy2D(const half* src, int row, int col, half *dest, int row_padding, int col_padding);
@@ -47,6 +50,8 @@ void cusparse_gemm_csr_device(half *sp_A, half *d_B, int m, int k, int n, half *
 void cusparse_gemm_blocked_device_test();
 
 void cusparse_gemm_csr_device_test();
+
+void softmax_cudnn_trans(half *feature, int batch, int channel, int width, int height, half *out);
 
 
 #endif //SPARSECONV_KERNELS_TRANSFORMER_CUH

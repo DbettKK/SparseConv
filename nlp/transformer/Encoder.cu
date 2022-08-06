@@ -11,8 +11,8 @@ void Encoder::forward(MatrixHalf *input, MatrixHalf *output, int layer) {
     attn_out->free_matrix();
 }
 
-void Encoder::init() {
-    attn = new Attention();
+void Encoder::init(int max_len) {
+    attn = new Attention(max_len);
     mlp = new FeedForward();
 }
 

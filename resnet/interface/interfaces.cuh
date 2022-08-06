@@ -11,16 +11,6 @@
 #include "../interface/resnet_kernel.cuh"
 #include "../../nlp/transformer/kernels_transformer.cuh"
 
-#define CHECK_CUDNN(func)                                                      \
-{                                                                              \
-    cudnnStatus_t status = (func);                                             \
-    if (status != CUDNN_STATUS_SUCCESS) {                                      \
-        printf("CUDNN failed at line %d with error: %s (%d)\n",                \
-               __LINE__, cudnnGetErrorString(status), status);                 \
-        return ;                                                               \
-    }                                                                          \
-}
-
 __global__ void ReLU(half *in, half *out, int size);
 
 

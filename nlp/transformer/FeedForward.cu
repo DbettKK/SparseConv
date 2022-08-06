@@ -14,16 +14,19 @@ void FeedForward::forward(MatrixHalf *input, MatrixHalf *output, int layer, bool
     auto mo = new MatrixHalf(input->getBatch(), input->getRow(), d_model, true);
     // 第一个线性层
     auto Wff = new MatrixHalf(1, d_model, d_ff, true, path_ff);
-    input->gemm(Wff, ff);
+    input->gemm_batches(Wff, ff, true);
     // relu
     ff->relu();
     // 第二个线性层
     auto Wm = new MatrixHalf(1, d_model, d_ff, true, path_m);
-    ff->gemm(Wm, mo);
+    ff->gemm_batches(Wm, mo, true);
     // Add & LayerNorm
-    mo->addMatrix(input, output);
+    auto add_out = new MatrixHalf(input->getBatch(), input->getRow(), input->getCol(), true);
+    mo->addMatrix(input, add_out);
+    add_out->layerNorm(output);
     // free
     Wff->free_matrix();
     Wm->free_matrix();
+    add_out->free_matrix();
 }
 

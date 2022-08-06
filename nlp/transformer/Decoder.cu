@@ -4,9 +4,9 @@
 
 #include "Decoder.cuh"
 
-void Decoder::init() {
-    self_attn = new Attention();
-    src_attn = new Attention();
+void Decoder::init(int max_len) {
+    self_attn = new Attention(max_len);
+    src_attn = new Attention(max_len);
     mlp = new FeedForward();
 }
 

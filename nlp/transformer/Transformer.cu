@@ -44,37 +44,7 @@ void Transformer::make_pe(int batch, int max_len, int d_model, MatrixHalf *out) 
 }
 
 void Transformer::init(int batch, int max_len, int d_model) {
-    pe = new MatrixHalf(batch, max_len, d_model, true);
-    mask1 = new MatrixHalf(1, max_len, max_len, true);
-    make_pe(batch, max_len, d_model, pe);
-    //make_mask1(max_len, mask1);
-    W_ebd = new MatrixHalf(1, max_len, d_model, true, "../../data/transformer/w_ebd");
-    W_last = new MatrixHalf(1, d_model, max_len, true, "../../data/transformer/w_last");
-    encoder = new Encoder();
-    encoder->init();
-    decoder = new Decoder();
-    decoder->init();
-}
 
-void Transformer::make_mask1(int max_len, MatrixHalf *out) {
-    // 从主对角线开始 隔两个对角线的值不mask
-    half *h_mask = new half[max_len * max_len];
-    memset(h_mask, 0, sizeof(half) * max_len * max_len);
-    int max_num = (max_len - 1) / 3;
-    for (int i = 0; i < max_len; i++) {
-        for (int j = 0; j < max_len; j++) {
-            for (int k = 0; k <= max_num; k++) {
-                if (i == j + k * 3) h_mask[i * max_len + j] = 1;
-                if (j == i + k * 3) h_mask[i * max_len + j] = 1;
-            }
-        }
-    }
-    for (int i = 0; i < max_len; i++) {
-        for (int j = 0; j < max_len; j++) {
-            printf("%d ", __half2int_rz(h_mask[i * max_len + j]));
-        }
-        printf("\n");
-    }
 }
 
 void Transformer::Embedding(const int *in, int batch, int max_len, MatrixHalf *out) {
@@ -99,35 +69,47 @@ void Transformer::Embedding(const int *in, int batch, int max_len, MatrixHalf *o
     //delete[] one_hot;
 }
 
-void Transformer::forward(int *en_in, int en_batch, int en_max_len, int *de_in, int de_batch, int de_max_len, int d_model,
-                          MatrixHalf *out) {
+void Transformer::forward(int *en_in, int *de_in, MatrixHalf *out) {
     // 1. embedding
-    auto en_ebd_out = new MatrixHalf(en_batch, en_max_len, d_model, true);
-    auto de_ebd_out = new MatrixHalf(de_batch, de_max_len, d_model, true);
-    Embedding(en_in, en_batch, en_max_len, en_ebd_out);
-    Embedding(de_in, de_batch, de_max_len, de_ebd_out);
-    // en_ebd_out->print("encoder ebd out:", true);
+    auto ebd_t = new CudaTime();
+    ebd_t->initAndStart();
+    auto en_ebd_out = new MatrixHalf(batch, en_max_len, d_model, true);
+    auto de_ebd_out = new MatrixHalf(batch, de_max_len, d_model, true);
+    Embedding(en_in, batch, en_max_len, en_ebd_out);
+    Embedding(de_in, batch, de_max_len, de_ebd_out);
+    //printf("ebd time: %fms\n", ebd_t->endAndGetTime());
 
     // 2. position encoding
-    auto en_pe_out = new MatrixHalf(en_batch, en_max_len, d_model, true);
-    auto de_pe_out = new MatrixHalf(de_batch, de_max_len, d_model, true);
+    auto pe_t = new CudaTime();
+    pe_t->initAndStart();
+    auto en_pe_out = new MatrixHalf(batch, en_max_len, d_model, true);
+    auto de_pe_out = new MatrixHalf(batch, de_max_len, d_model, true);
     PositionalEncoding(en_ebd_out, en_pe_out);
     PositionalEncoding(de_ebd_out, de_pe_out);
-    // en_pe_out->print("pe out:", true);
+    //printf("pe time: %fms\n", pe_t->endAndGetTime());
 
     // 3. encoder
-    auto encoder_out = new MatrixHalf(en_batch, en_max_len, d_model, true);
+    auto en_t = new CudaTime();
+    en_t->initAndStart();
+    auto encoder_out = new MatrixHalf(batch, en_max_len, d_model, true);
     encoder->forwardN(en_pe_out, encoder_out, 6);
-    encoder_out->print("encoder out:", true);
+    //printf("encoder time: %fms\n", en_t->endAndGetTime());
 
     // 4. decoder
-    auto decoder_out = new MatrixHalf(de_batch, de_max_len, d_model, true);
+    auto de_t = new CudaTime();
+    de_t->initAndStart();
+    auto decoder_out = new MatrixHalf(batch, de_max_len, d_model, true);
     decoder->forwardN(de_pe_out, encoder_out, decoder_out, 6);
+    //printf("decoder time: %fms\n", de_t->endAndGetTime());
+
     // 5. liner + softmax
+    auto lr_out = new MatrixHalf(batch, de_max_len, de_max_len, true);
+    decoder_out->gemm_batches(W_last, lr_out, true);
+    auto sm_out = new MatrixHalf(batch, de_max_len, de_max_len, true);
+    softmax_cudnn_trans(lr_out->getMatrix(), batch * de_max_len, de_max_len, 1, 1, sm_out->getMatrix());
 
-    decoder_out->print("out:", true);
 
-    decoder_out->copyTo(out);
+    sm_out->copyTo(out);
 
     // 6. free
     en_ebd_out->free_matrix();
@@ -136,4 +118,18 @@ void Transformer::forward(int *en_in, int en_batch, int en_max_len, int *de_in, 
     de_pe_out->free_matrix();
     encoder_out->free_matrix();
     decoder_out->free_matrix();
+    lr_out->free_matrix();
+    sm_out->free_matrix();
+}
+
+Transformer::Transformer(const int batch, const int enMaxLen, const int deMaxLen, const int dModel) :
+                                batch(batch), en_max_len(enMaxLen), de_max_len(deMaxLen), d_model(dModel) {
+    int max_len = enMaxLen > deMaxLen ? enMaxLen : deMaxLen;
+    pe = new MatrixHalf(batch, max_len, dModel, true);
+    W_ebd = new MatrixHalf(1, max_len, d_model, true, "../../data/transformer/w_ebd");
+    W_last = new MatrixHalf(1, d_model, max_len, true, "../../data/transformer/w_last");
+    encoder = new Encoder();
+    encoder->init(enMaxLen);
+    decoder = new Decoder();
+    decoder->init(deMaxLen);
 }
