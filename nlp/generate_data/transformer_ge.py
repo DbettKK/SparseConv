@@ -3,6 +3,8 @@ import numpy as np
 d_model = 512
 d_ff = 2048
 max_sen_len = 16
+source_vocab = 20
+target_vocab = 20
 dtype = 'float16'
 N = 6
 
@@ -13,8 +15,8 @@ def transformer():
     # Wff: [d_model, d_ff], W_model: [d_ff, d_model]
     # Webd: [max_sen_len, d_model]
     # W_last: [d_model, max_sen_len]
-    Webd = np.random.uniform(0, 0.1, (max_sen_len, d_model)).astype(dtype)
-    W_last = np.random.uniform(0, 0.1, (d_model, max_sen_len)).astype(dtype)
+    Webd = np.random.uniform(0, 0.1, (source_vocab, d_model)).astype(dtype)
+    W_last = np.random.uniform(0, 0.1, (d_model, target_vocab)).astype(dtype)
     Webd.tofile(data_path + '/w_ebd')
     W_last.tofile(data_path + '/w_last')
     for i in range(N):

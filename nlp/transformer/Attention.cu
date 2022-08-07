@@ -45,20 +45,18 @@ void Attention::forward(MatrixHalf *inputQ, MatrixHalf *inputK, MatrixHalf *inpu
     // 3. 多头注意力
     auto concat = new MatrixHalf(inputQ->getBatch(), inputQ->getRow(), inputQ->getCol(), true);
     attn(outQ->getMatrix(), outK->getMatrix(), outV->getMatrix(), concat->getMatrix(),
-         inputQ->getBatch(), inputQ->getRow(), inputQ->getCol(), which_part == 3);
+         inputQ->getBatch(), inputK->getRow(), inputQ->getRow(), inputQ->getCol(), which_part == 3);
     // concat->print("concat", true);
     // 4. 再一个线性层 运算结果concat并和 W0 运算得到输出
     auto attention_out = new MatrixHalf(inputQ->getBatch(), inputQ->getRow(), inputQ->getCol(), true);
     auto W0 = new MatrixHalf(1, embedding, embedding, true, "../../data/transformer/w0_" + path_suffix);
     concat->gemm_batches(W0, attention_out, true);
-
     // 5. add+layerNorm
     auto add_out = new MatrixHalf(inputQ->getBatch(), inputQ->getRow(), inputQ->getCol(), true);
     attention_out->addMatrix(inputQ, add_out);
     auto ln_out = new MatrixHalf(inputQ->getBatch(), inputQ->getRow(), inputQ->getCol(), true);
     add_out->layerNorm(ln_out);
     ln_out->copyTo(output);
-
     // 6. free
     concat->free_matrix();
     attention_out->free_matrix();
@@ -70,30 +68,32 @@ void Attention::forward(MatrixHalf *inputQ, MatrixHalf *inputK, MatrixHalf *inpu
     W0->free_matrix();
 }
 
-void Attention::attn(half *Q, half *K, half *V, half *out, int batch, int max_len, int ebd, bool isMasked) {
+void Attention::attn(half *Q, half *K, half *V, half *out, int batch, int en_max_len, int de_max_len, int ebd, bool isMasked) {
+    // self-attn: en_max_len == de_max_len
+    // attn: en_max_len != de_max_len
     half *transK, *ans, *softmax_out;
-    cudaMalloc(&transK, sizeof(half) * max_len * ebd / heads);
-    cudaMalloc(&ans, sizeof(half) * max_len * max_len);
-    cudaMalloc(&softmax_out, sizeof(half) * max_len * max_len);
-    dim3 grid(max_len / 32 + 1, ebd / heads / 32 + 1);
+    cudaMalloc(&transK, sizeof(half) * en_max_len * ebd / heads);
+    cudaMalloc(&ans, sizeof(half) * de_max_len * en_max_len);
+    cudaMalloc(&softmax_out, sizeof(half) * de_max_len * en_max_len);
+    dim3 grid(en_max_len / 32 + 1, ebd / heads / 32 + 1);
     dim3 block(32, 32);
     for (int b = 0; b < batch; b++) {
         for (int i = 0; i < heads; i++) {
-            int each_block = (b * heads + i) * max_len * ebd / heads;
+            int each_block = (b * heads + i) * ebd / heads;
             // 1. K转置
-            transpose_half<<<grid, block>>>(K + each_block, transK, max_len, ebd / heads);
+            transpose_half<<<grid, block>>>(K + each_block * en_max_len, transK, en_max_len, ebd / heads);
             // 2. QK^T / sqrt(d_k)
-            cublas_gemm_device_scale(Q + each_block, transK, max_len, ebd / heads, max_len, 1.0f / (float)sqrt(ebd), ans);
+            cublas_gemm_device_scale(Q + each_block * de_max_len, transK, de_max_len, ebd / heads, en_max_len, 1.0f / (float)sqrt(ebd), ans);
             //MatrixHalf::print_device(ans, max_len, max_len);
             // 3. mask
-            mask_matrix_gpu<<<max_len, max_len>>>(ans, isMasked ? mask2 : mask1, max_len, max_len);
+            mask_matrix_gpu<<<en_max_len * de_max_len / 32 + 1, 32>>>(ans, isMasked ? mask2 : mask1, de_max_len, en_max_len);
             //MatrixHalf::print_device(ans, max_len, max_len);
             // 4. softmax
-            softmax_cudnn_trans(ans, max_len, max_len, 1, 1, softmax_out);
+            softmax_cudnn_trans(ans, de_max_len, en_max_len, 1, 1, softmax_out);
             //softmax_half<<<max_len, max_len>>>(ans, max_len, max_len);
             // 5. 和V乘
             //sparse_mma_gemm_device(softmax_out, V + each_block, max_len, max_len, ebd / heads, true, out + each_block);
-            cublas_gemm_device(softmax_out, V + each_block, max_len, max_len, ebd / heads, out + each_block);
+            cublas_gemm_device(softmax_out, V + each_block * en_max_len, de_max_len, en_max_len, ebd / heads, out + each_block * de_max_len);
         }
     }
     // free

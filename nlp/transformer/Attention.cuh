@@ -17,7 +17,7 @@ public:
 
     void forward(MatrixHalf *inputQ, MatrixHalf *inputK, MatrixHalf *inputV, MatrixHalf *output, int layer, int which_part);
 
-    void attn(half *Q, half *K, half *V, half *out, int batch, int max_len, int ebd, bool isMasked);
+    void attn(half *Q, half *K, half *V, half *out, int batch, int en_max_len, int de_max_len, int ebd, bool isMasked);
 
     void make_mask1(int max_len, int *out);
 

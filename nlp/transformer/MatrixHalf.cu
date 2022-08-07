@@ -80,6 +80,7 @@ void MatrixHalf::gemm_batches(MatrixHalf *item, MatrixHalf *out, bool is_single_
                                row, col, item->col, out->matrix + i * out->row * out->col);
         }
     }
+    //cublas_gemm_batches_device(matrix, item->matrix, row, col, item->col, batch, is_single_batch, out->matrix);
 }
 
 int MatrixHalf::getSize() const {
@@ -160,13 +161,10 @@ void MatrixHalf::relu() {
 }
 
 void MatrixHalf::addMatrix(MatrixHalf *add, MatrixHalf *out) {
-    if (this->batch != add->batch || this->row != add->row || this->col != add->col) {
-        printf("Error: matrix add need to be the same shape!\n");
-        return;
-    }
     //this->print("A:", true);
     //add->print("B:", true);
-    matrix_add<<<batch * col * row / 32 + 1, 32>>>(matrix, add->matrix, out->matrix, batch * row * col);
+    dim3 block(row, col);
+    matrix_add<<<batch, block>>>(matrix, add->matrix, out->matrix, batch, row, col, add->row, add->col);
 }
 
 void MatrixHalf::copyTo(MatrixHalf *out) {
@@ -178,6 +176,8 @@ void MatrixHalf::layerNorm(MatrixHalf *out) {
     CHECK_CUDA(cudaMalloc(&d_mean, sizeof(half) * batch * row))
     CHECK_CUDA(cudaMalloc(&d_std, sizeof(half) * batch * row))
     getMeanAndStd<<<batch, row>>>(matrix, batch, row, col, d_mean, d_std);
+    //MatrixHalf::print_device(d_mean, batch, row);
+    //MatrixHalf::print_device(d_std, batch, row);
     layerNorm_kernel<<<batch * row, col>>>(matrix, batch, row, col, d_mean, d_std, out->getMatrix());
     // free
     CHECK_CUDA(cudaFree(d_mean))
