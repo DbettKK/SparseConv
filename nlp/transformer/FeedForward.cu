@@ -18,7 +18,7 @@ void FeedForward::forward(MatrixHalf *input, MatrixHalf *output, int layer, bool
     // relu
     ff->relu();
     // 第二个线性层
-    auto Wm = new MatrixHalf(1, d_model, d_ff, true, path_m);
+    auto Wm = new MatrixHalf(1, d_ff, d_model, true, path_m);
     ff->gemm_batches(Wm, mo, true);
     // Add & LayerNorm
     auto add_out = new MatrixHalf(input->getBatch(), input->getRow(), input->getCol(), true);

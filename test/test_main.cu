@@ -283,19 +283,19 @@ void cublas_gemm_batches_device(half *d_A, half *d_B, int batch, int inputM, int
     half **dArrA, **dArrB, **dArrC;
     half *arrA[64], *arrB[64], *arrC[64];
     for (int i = 0; i < batch; i++) {
-//        half *tmpA, *tmpB, *tmpC;
-//        CHECK_CUDA(cudaMalloc(&tmpA, sizeof(half) * m * k))
-//        CHECK_CUDA(cudaMalloc(&tmpB, sizeof(half) * n * k))
-//        CHECK_CUDA(cudaMalloc(&tmpC, sizeof(half) * m * n))
-//        CHECK_CUDA(cudaMemcpy(tmpA, d_A + i * m * k, sizeof(half) * m * k, cudaMemcpyDeviceToDevice))
-//        CHECK_CUDA(cudaMemcpy(tmpB, d_B + i * n * k, sizeof(half) * n * k, cudaMemcpyDeviceToDevice))
-//        CHECK_CUDA(cudaMemcpy(tmpC, d_C + i * m * n, sizeof(half) * m * n, cudaMemcpyDeviceToDevice))
-//        arrA[i] = tmpA;
-//        arrB[i] = tmpB;
-//        arrC[i] = tmpC;
-        arrA[i] = d_A + i * m * k;
-        arrB[i] = d_B + i * n * k;
-        arrC[i] = d_C + i * m * n;
+        half *tmpA, *tmpB, *tmpC;
+        CHECK_CUDA(cudaMalloc(&tmpA, sizeof(half) * m * k))
+        CHECK_CUDA(cudaMalloc(&tmpB, sizeof(half) * n * k))
+        CHECK_CUDA(cudaMalloc(&tmpC, sizeof(half) * m * n))
+        CHECK_CUDA(cudaMemcpy(tmpA, d_A + i * m * k, sizeof(half) * m * k, cudaMemcpyDeviceToDevice))
+        CHECK_CUDA(cudaMemcpy(tmpB, d_B, sizeof(half) * n * k, cudaMemcpyDeviceToDevice))
+        CHECK_CUDA(cudaMemcpy(tmpC, d_C + i * m * n, sizeof(half) * m * n, cudaMemcpyDeviceToDevice))
+        arrA[i] = tmpA;
+        arrB[i] = tmpB;
+        arrC[i] = tmpC;
+//        arrA[i] = d_A + i * m * k;
+//        arrB[i] = d_B + i * n * k;
+//        arrC[i] = d_C + i * m * n;
     }
     CHECK_CUDA(cudaMalloc(&dArrA, sizeof(half*) * batch))
     CHECK_CUDA(cudaMalloc(&dArrB, sizeof(half*) * batch))
@@ -308,16 +308,18 @@ void cublas_gemm_batches_device(half *d_A, half *d_B, int batch, int inputM, int
 
     CHECK_CUDA(cudaMemcpy(arrC, dArrC, sizeof(half*) * batch, cudaMemcpyDeviceToHost))
 
+
+    half *c_out;
+    CHECK_CUDA(cudaMalloc(&c_out, sizeof(half) * batch * m * n))
     for (int i = 0; i < batch; i++) {
-        half *c_out = new half[m * n];
-        cudaMemcpy(c_out, arrC[i], sizeof(half) * m * n, cudaMemcpyDeviceToHost);
+        CHECK_CUDA(cudaMemcpy(output + i * m * n, arrC[i], sizeof(half) * m * n, cudaMemcpyDeviceToDevice))
         //cudaMemcpy(c_out, dArrC + i, sizeof(half) * m * n, cudaMemcpyDeviceToHost);
-        for (int j = 0; j < m; j++) {
-            for (int v = 0; v < n; v++) {
-                printf("%d ", __half2int_rz(c_out[j * n + v]));
-            }
-            printf("\n");
-        }
+//        for (int j = 0; j < m; j++) {
+//            for (int v = 0; v < n; v++) {
+//                printf("%d ", __half2int_rz(c_out[j * n + v]));
+//            }
+//            printf("\n");
+//        }
     }
 
     // transpose
@@ -339,24 +341,24 @@ void cublas_gemm_batches_device(half *d_A, half *d_B, int batch, int inputM, int
 }
 
 void test_blas() {
-    half *h_A = new half[16 * 16 * 256];
+    half *h_A = new half[16 * 256 * 256];
     half *h_B = new half[16 * 256 * 256];
     half *h_out = new half[16 * 16 * 256];
-    for (int i = 0; i < 256 * 256; i++) h_A[i] = 3;
+    for (int i = 0; i < 16 * 256 * 256; i++) h_A[i] = 3;
     for (int i = 0; i < 16 * 256 * 256; i++) h_B[i] = 4;
 
     half *dA, *dB, *dOut;
-    cudaMalloc(&dA, sizeof(half) * 256 * 256);
+    cudaMalloc(&dA, sizeof(half) * 16 * 256 * 256);
     cudaMalloc(&dB, sizeof(half) * 256 * 256 * 16);
-    cudaMalloc(&dOut, sizeof(half) * 256 * 256);
-    cudaMemcpy(dA, h_A, sizeof(half)*256*256, cudaMemcpyHostToDevice);
+    cudaMalloc(&dOut, sizeof(half) * 16 * 256 * 256);
+    cudaMemcpy(dA, h_A, sizeof(half)*16 * 256 * 256, cudaMemcpyHostToDevice);
     cudaMemcpy(dB, h_B, sizeof(half)*16 * 256 * 256, cudaMemcpyHostToDevice);
 
     for (int i = 0; i < 1; i++) {
         auto tt0 = new CudaTime();
         tt0->initAndStart();
         for (int j = 0; j < 16; j++) {
-            cublas_gemm_device(dA + j * 16 * 256, dB + j * 256 * 256, 16, 256, 256, dOut + j * 16 * 256);
+            cublas_gemm_device(dA + j * 256 * 256, dB + j * 256 * 256, 256, 256, 256, dOut + j * 256 * 256);
         }
         printf("no batch time: %fms\n", tt0->endAndGetTime());
     }
@@ -364,14 +366,14 @@ void test_blas() {
         auto tt0 = new CudaTime();
         tt0->initAndStart();
         for (int j = 0; j < 16; j++) {
-            sparse_mma_gemm_device(dA + j * 16 * 256, dB + j * 256 * 256, 16, 256, 256, false, dOut + j * 16 * 256);
+            sparse_mma_gemm_device(dA + j * 256 * 256, dB + j * 256 * 256, 256, 256, 256, false, dOut + j * 256 * 256);
         }
         printf("no batch spmma time: %fms\n", tt0->endAndGetTime());
     }
     for (int i = 0; i < 1; i++) {
         auto tt1 = new CudaTime();
         tt1->initAndStart();
-        cublas_gemm_batches_device(dA, dB, 16, 16, 256, 256, dOut);
+        cublas_gemm_batches_device(dA, dB, 16, 256, 256, 256, dOut);
         printf("batch time: %fms\n", tt1->endAndGetTime());
     }
 

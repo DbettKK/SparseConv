@@ -46,7 +46,6 @@ void Attention::forward(MatrixHalf *inputQ, MatrixHalf *inputK, MatrixHalf *inpu
     auto concat = new MatrixHalf(inputQ->getBatch(), inputQ->getRow(), inputQ->getCol(), true);
     attn(outQ->getMatrix(), outK->getMatrix(), outV->getMatrix(), concat->getMatrix(),
          inputQ->getBatch(), inputK->getRow(), inputQ->getRow(), inputQ->getCol(), which_part == 3);
-    // concat->print("concat", true);
     // 4. 再一个线性层 运算结果concat并和 W0 运算得到输出
     auto attention_out = new MatrixHalf(inputQ->getBatch(), inputQ->getRow(), inputQ->getCol(), true);
     auto W0 = new MatrixHalf(1, embedding, embedding, true, "../../data/transformer/w0_" + path_suffix);

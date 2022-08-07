@@ -230,22 +230,12 @@ void cublas_gemm_batches_device(half *d_A, half *d_B, int batch, int inputM, int
     half *arrA[64], *arrB[64], *arrC[64];
     if (isSingleBatch) {
         for (int i = 0; i < batch; i++) {
-            half *tmpA, *tmpB, *tmpC;
-            CHECK_CUDA(cudaMalloc(&tmpA, sizeof(half) * m * k))
-            CHECK_CUDA(cudaMalloc(&tmpB, sizeof(half) * n * k))
-            CHECK_CUDA(cudaMalloc(&tmpC, sizeof(half) * m * n))
-            CHECK_CUDA(cudaMemcpy(tmpA, d_A + i * m * k, sizeof(half) * m * k, cudaMemcpyDeviceToDevice))
-            CHECK_CUDA(cudaMemcpy(tmpB, d_B, sizeof(half) * n * k, cudaMemcpyDeviceToDevice))
-            CHECK_CUDA(cudaMemcpy(tmpC, d_C + i * m * n, sizeof(half) * m * n, cudaMemcpyDeviceToDevice))
-            arrA[i] = tmpA;
+            half *tmpB;
+            CHECK_CUDA(cudaMalloc(&tmpB, sizeof(half) * k * n))
+            CHECK_CUDA(cudaMemcpy(tmpB, d_B, sizeof(half) * k * n, cudaMemcpyDeviceToDevice))
+            arrA[i] = d_A + i * m * k;
             arrB[i] = tmpB;
-            arrC[i] = tmpC;
-//            half *tmpB;
-//            CHECK_CUDA(cudaMalloc(&tmpB, sizeof(half) * k * n))
-//            CHECK_CUDA(cudaMemcpy(tmpB, d_B, sizeof(half) * k * n, cudaMemcpyDeviceToDevice))
-//            arrA[i] = d_A + i * m * k;
-//            arrB[i] = tmpB;
-//            arrC[i] = d_C + i * m * n;
+            arrC[i] = d_C + i * m * n;
         }
     } else {
         for (int i = 0; i < batch; i++) {
@@ -266,12 +256,7 @@ void cublas_gemm_batches_device(half *d_A, half *d_B, int batch, int inputM, int
     CHECK_CUDA(cudaMemcpy(arrC, dArrC, sizeof(half*) * batch, cudaMemcpyDeviceToHost))
 
     for (int i = 0; i < batch; i++) {
-        cudaError_t status = (cudaMemcpy(output + i * m * n, arrC[i], sizeof(half) * m * n, cudaMemcpyDeviceToDevice));
-        if (status != cudaSuccess) {
-            printf("CUDA API failed at %s line %d with error: %s (%d)\n",
-                   __FILE__, __LINE__, cudaGetErrorString(status), status);
-            return;
-        }
+        CHECK_CUDA(cudaMemcpy(output + i * m * n, arrC[i], sizeof(half) * m * n, cudaMemcpyDeviceToDevice));
     }
 //    for (int i = 0; i < batch; i++) {
 //        half *c_out = new half[m * n];

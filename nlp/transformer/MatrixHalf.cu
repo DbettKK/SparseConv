@@ -80,7 +80,7 @@ void MatrixHalf::gemm_batches(MatrixHalf *item, MatrixHalf *out, bool is_single_
                                row, col, item->col, out->matrix + i * out->row * out->col);
         }
     }
-    //cublas_gemm_batches_device(matrix, item->matrix, row, col, item->col, batch, is_single_batch, out->matrix);
+    //cublas_gemm_batches_device(matrix, item->matrix, batch, row, col, item->col, is_single_batch, out->matrix);
 }
 
 int MatrixHalf::getSize() const {

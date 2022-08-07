@@ -96,7 +96,7 @@ void test_trans() {
     for (int i = 0; i < 2 * 16; i++) en_in[i] = i / 2 + 1;
     for (int i = 0; i < 2 * 1; i++) de_in[i] = i / 2 + 1;
     auto out = new MatrixHalf(2, 1, 20, true);
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 12; i++) {
         auto trans_t = new CudaTime();
         trans_t->initAndStart();
         t->forward(en_in, de_in, out);

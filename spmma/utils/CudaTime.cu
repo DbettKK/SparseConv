@@ -69,3 +69,12 @@ void CudaTime::endAndPrintTime(const std::string &msg) {
     destroy();
     printf("%s %fms\n", msg.c_str(), totalTime);
 }
+
+void CudaTime::endAndExportTimeToFile(const std::string path, const std::string prefix_msg) {
+    end();
+    float totalTime = getTime();
+    destroy();
+    std::ofstream out(path, std::ios::app);
+    out << prefix_msg << totalTime << "ms\n";
+    out.close();
+}

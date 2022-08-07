@@ -6,6 +6,8 @@
 #define SPARSECONVOLUTION_CUDATIME_CUH
 
 #include<iostream>
+#include <string>
+#include <fstream>
 
 class CudaTime {
     cudaEvent_t startTime;
@@ -20,6 +22,8 @@ public:
     void initAndStart();
 
     float endAndGetTime();
+
+    void endAndExportTimeToFile(std::string path, std::string prefix_msg);
 
     void endAndPrintTime(const std::string &msg);
 };

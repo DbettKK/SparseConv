@@ -6,7 +6,7 @@
 
 void test_resnet() {
     auto mr = new MyResNet();
-    for (int i = 0; i < 12; i++) {
+    for (int i = 0; i < 1; i++) {
         auto tt = new CudaTime();
         tt->initAndStart();
         mr->resnet50();
