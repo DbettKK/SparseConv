@@ -186,7 +186,7 @@ MyTensor::conv2d(int conv_num, int out_channel, int kernel_w, int kernel_h, int 
     auto conv_t = new CudaTime();
     conv_t->initAndStart();
     //conv2d_device_cudnn(this->tensor, kernel->tensor, batch, channel, kernel->batch, width, height, kernel->width,
-    //                    kernel->height, stride, padding, out->getTensor());
+     //                   kernel->height, stride, padding, out->getTensor());
     conv2d_device_spmma(this->tensor, kernel->tensor, batch, channel, kernel->batch, width, height, kernel->width,
                         kernel->height, stride, padding, out->getTensor());
     conv_t->endAndExportTimeToFile("../../data/time/resnet50_spmma_time.txt", "spmma conv" + std::to_string(conv_num) + ": ");

@@ -65,7 +65,7 @@ def ge_filter(kernel_size, conv_num, path):
 
 def resnet50():
     data_path = '../data/resnet50'
-    data_size = [1, 3, 224, 224]
+    data_size = [4, 3, 224, 224]
     W_fc_size = [2048, 1000]
     kernel_size_x = [
         [256, 64, 1, 1],

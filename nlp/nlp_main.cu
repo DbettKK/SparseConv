@@ -5,6 +5,7 @@
 #include "./transformer/Attention.cuh"
 #include "../spmma/utils/CudaTime.cuh"
 #include "transformer/Transformer.cuh"
+#include "test/test_nlp.cuh"
 #include <random>
 
 float generate_random() {
@@ -106,6 +107,7 @@ void test_trans() {
 }
 
 int main() {
-    test_trans();
+    test_gemm_batches();
+    //test_trans();
     return 0;
 }

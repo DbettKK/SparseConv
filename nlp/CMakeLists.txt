@@ -5,7 +5,7 @@ set(CMAKE_CUDA_STANDARD 17)
 
 add_executable(Nlp nlp_main.cu
         ../spmma/utils/CudaTime.cu ../spmma/utils/CudaTime.cuh
-        transformer/Encoder.cu transformer/Encoder.cuh transformer/Attention.cu transformer/Attention.cuh transformer/MatrixHalf.cu transformer/MatrixHalf.cuh transformer/kernels_transformer.cuh transformer/utils/checks.cuh transformer/kernels_transformer.cu transformer/FeedForward.cu transformer/FeedForward.cuh transformer/Decoder.cu transformer/Decoder.cuh transformer/Transformer.cu transformer/Transformer.cuh)
+        transformer/Encoder.cu transformer/Encoder.cuh transformer/Attention.cu transformer/Attention.cuh transformer/MatrixHalf.cu transformer/MatrixHalf.cuh transformer/kernels_transformer.cuh transformer/utils/checks.cuh transformer/kernels_transformer.cu transformer/FeedForward.cu transformer/FeedForward.cuh transformer/Decoder.cu transformer/Decoder.cuh transformer/Transformer.cu transformer/Transformer.cuh test/test_nlp.cu test/test_nlp.cuh)
 
 set_target_properties(Nlp PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON)
