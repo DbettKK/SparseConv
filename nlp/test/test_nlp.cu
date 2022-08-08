@@ -43,3 +43,83 @@ void test_gemm_batches() {
     }
     printf("total: %d, diff: %d\n", size, diff);
 }
+
+void test_spmma_cublas() {
+    std::random_device sd; // sd可以产生一个质量很高的随机数
+    std::default_random_engine e(sd());
+    std::uniform_real_distribution<float> u(0, 10); // 闭区间
+
+    int m = 4, k = 16, n = 64;
+    half *hA = new half[m * k];
+    half *hB = new half[k * n];
+    for (int i = 0; i < m * k; i+=2) {
+        hA[i] = 0;
+        hA[i + 1] = u(e);
+    }
+    for (int i = 0; i < k * n; i++) hB[i] = u(e);
+
+    half *dA, *dB, *d1, *d2;
+    cudaMalloc(&dA, sizeof(half) * m * k);
+    cudaMalloc(&dB, sizeof(half) * n * k);
+    cudaMalloc(&d1, sizeof(half) * m * n);
+    cudaMalloc(&d2, sizeof(half) * m * n);
+    cudaMemcpy(dA, hA, sizeof(half) * m * k, cudaMemcpyHostToDevice);
+    cudaMemcpy(dB, hB, sizeof(half) * n * k, cudaMemcpyHostToDevice);
+    cublas_gemm_device(dA, dB, m, k, n, d1);
+    sparse_mma_gemm_device(dA, dB, m, k, n, false, d2);
+
+    half *o1 = new half[m * n];
+    half *o2 = new half[m * n];
+    cudaMemcpy(o1, d1, sizeof(half) * m * n, cudaMemcpyDeviceToHost);
+    cudaMemcpy(o2, d2, sizeof(half) * m * n, cudaMemcpyDeviceToHost);
+
+    half *hC = new half[m * n];
+    memset(hC, 0, sizeof(half) * m * n);
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            for (int v = 0; v < k; v++) {
+                hC[i * n + j] = __half2float(hC[i * n + j]) + __half2float(hA[i * k + v]) * __half2float(hB[v * n + j]);
+            }
+        }
+    }
+
+    int diff = 0;
+    for (int i = 0; i < m * n; i++) {
+        if (__half2float(o1[i]) != __half2float(o2[i])) diff++;
+        //printf("diff: %.2f : %.2f\n", __half2float(o1[i]), __half2float(o2[i]));
+    }
+    printf("cublas, spmma: total: %d, diff: %d\n", m * n, diff);
+    diff = 0;
+    for (int i = 0; i < m * n; i++) {
+        if (__half2float(hC[i]) != __half2float(o2[i])) diff++;
+        //printf("diff: %.2f : %.2f\n", __half2float(o1[i]), __half2float(o2[i]));
+    }
+    printf("spmma, cpu: total: %d, diff: %d\n", m * n, diff);
+    diff = 0;
+    for (int i = 0; i < m * n; i++) {
+        if (__half2float(o1[i]) != __half2float(hC[i])) diff++;
+        //printf("diff: %.2f : %.2f\n", __half2float(o1[i]), __half2float(hC[i]));
+    }
+    printf("cublas, cpu: total: %d, diff: %d\n", m * n, diff);
+    printf("cublas:\n");
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            printf("%.2f ", __half2float(o1[i]));
+        }
+        printf("\n");
+    }
+    printf("cpu:\n");
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            printf("%.2f ", __half2float(hC[i]));
+        }
+        printf("\n");
+    }
+    printf("spmma:\n");
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            printf("%.2f ", __half2float(o2[i]));
+        }
+        printf("\n");
+    }
+}
