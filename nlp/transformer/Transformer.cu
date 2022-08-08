@@ -128,5 +128,5 @@ Transformer::Transformer(const int batch, const int enMaxLen, const int deMaxLen
     encoder = new Encoder();
     encoder->init(enMaxLen);
     decoder = new Decoder();
-    decoder->init(deMaxLen);
+    decoder->init(enMaxLen);
 }

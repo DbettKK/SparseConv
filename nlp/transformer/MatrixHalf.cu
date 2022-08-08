@@ -206,7 +206,7 @@ void MatrixHalf::cmp(half *item1, half *item2, int size) {
     for (int i = 0; i < size; i++) {
         if (__half2float(h1[i]) != __half2float(h2[i])) {
             diff++;
-            //printf("diff: %.2f : %.2f\n", __half2float(h1[i]), __half2float(h2[i]));
+            printf("diff: %.3f : %.3f\n", __half2float(h1[i]), __half2float(h2[i]));
         }
     }
     printf("total: %d, diff: %d\n", size, diff);

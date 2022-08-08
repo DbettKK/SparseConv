@@ -31,11 +31,6 @@ void Attention::forward(MatrixHalf *inputQ, MatrixHalf *inputK, MatrixHalf *inpu
     inputQ->gemm_batches(Wq, Q, true);
     inputK->gemm_batches(Wk, K, true);
     inputV->gemm_batches(Wv, V, true);
-//    if (which_part == 3) {
-//        Q->print("Q:", true);
-//        K->print("K:", true);
-//    }
-
     // 2. QKV [batch, sen, ebd] -> [batch, head, sen, ebd / head]
     // 多头机制计算本质是reshape    outQ: [batch, heads, sen, ebd / heads]
     auto outQ = new MatrixHalf(Q->getBatch(), Q->getRow(), Q->getCol(), true);
@@ -97,12 +92,11 @@ void Attention::attn(half *Q, half *K, half *V, half *out, int batch, int en_max
             // 4. softmax
             //softmax_cudnn_trans(ans, de_max_len, en_max_len, 1, 1, softmax_out);
             softmax_half<<<de_max_len, en_max_len>>>(ans, de_max_len, en_max_len, softmax_out);
-            //MatrixHalf::print_device(softmax_out, de_max_len, en_max_len);
             // 5. 和V乘
             //half *tmp;
             //CHECK_CUDA(cudaMalloc(&tmp, sizeof(half) * de_max_len * ebd / heads))
             //sparse_mma_gemm_device(softmax_out, V + each_block * en_max_len, de_max_len, en_max_len,
-            //                       ebd / heads, true, tmp);
+            //                       ebd / heads, true, out + each_block * de_max_len);
             cublas_gemm_device(softmax_out, V + each_block * en_max_len, de_max_len, en_max_len, ebd / heads, out + each_block * de_max_len);
             //MatrixHalf::cmp(tmp, out + each_block * de_max_len, de_max_len * ebd / heads);
         }
