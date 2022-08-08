@@ -25,6 +25,8 @@ void FeedForward::forward(MatrixHalf *input, MatrixHalf *output, int layer, bool
     mo->addMatrix(input, add_out);
     add_out->layerNorm(output);
     // free
+    ff->free_matrix();
+    mo->free_matrix();
     Wff->free_matrix();
     Wm->free_matrix();
     add_out->free_matrix();

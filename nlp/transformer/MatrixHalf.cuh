@@ -19,6 +19,8 @@ class MatrixHalf {
 public:
     static void print_device(half *item, int row, int col);
 
+    static void cmp(half *item1, half *item2, int size);
+
     MatrixHalf(int batch, int row, int col, bool is_device);
 
     MatrixHalf(int batch, int row, int col, bool is_device, half init);

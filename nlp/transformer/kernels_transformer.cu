@@ -23,24 +23,24 @@ bool check_sparse(half *item, int row, int col) {
     return true;
 }
 
-__global__ void softmax_half(half *item, const int row, const int col) {
-    __shared__ float mem[64][64]; // 记录每一列
-    const int blx = blockIdx.x;
-    const int thx = threadIdx.x;
-    if (thx < row && blx < col) {
-        mem[thx][blx] = item[thx * col + blx]; // 传入
+__global__ void softmax_half(half *item, const int row, const int col, half *out) {
+    __shared__ float mem[64][64]; // 记录
+    const int blx = blockIdx.x;  // row
+    const int thx = threadIdx.x; // col
+    if (thx < col && blx < row) {
+        mem[blx][thx] = __half2float(item[blx * col + thx]); // 传入
     }
     __syncthreads();
-    if (thx < row && blx < col) {
+    if (thx < col && blx < row) {
         float max = -65504;
-        for (int i = 0; i < row; i++) {
-            if (max <= mem[i][blx]) max = mem[i][blx];
+        for (int i = 0; i < col; i++) {
+            if (max <= mem[blx][i]) max = mem[blx][i];
         }
         double sum = 0;
-        for (int i = 0; i < row; i++) {
-            sum += expf(mem[i][blx] - max);
+        for (int i = 0; i < col; i++) {
+            sum += expf(mem[blx][i] - max);
         }
-        item[thx * col + blx] = expf(mem[thx][blx] - max) / sum;
+        out[blx * col + thx] = expf(mem[blx][thx] - max) / sum;
     }
 }
 
@@ -77,20 +77,20 @@ __global__ void mask_matrix_gpu(half *tgt, const int *mask_mat, int row, int col
     }
 }
 
-__global__ void relu_half(half *item, int row, int col) {
-    int nx = threadIdx.x + blockDim.x * blockIdx.x;
-    int ny = threadIdx.y + blockDim.y * blockIdx.y;
-    if (nx < row && ny < col) {
-        if (item[nx * col + ny] <= __float2half(0))
-            item[nx * col + ny] = 0;
+__global__ void relu_half(half *item, int size) {
+    int idx = threadIdx.x + blockDim.x * blockIdx.x;
+    if (idx < size) {
+        if (item[idx] <= __float2half(0))
+            item[idx] = 0;
     }
 }
 
 __global__ void matrix_add(half *A, half *B, half *C, int batch, int A_row, int A_col, int B_row, int B_col) {
-    int batch_id = blockIdx.x;
-    int row_id = threadIdx.x, col_id = threadIdx.y;
-    C[batch_id * A_row * A_col + row_id * A_col + col_id] =
-    A[batch_id * A_row * A_col + row_id * A_col + col_id] + B[batch_id * B_row * B_col + row_id * B_col + col_id];
+    int batch_id = blockIdx.x, col_id = blockIdx.y;
+    int row_id = threadIdx.x;
+    int A_id = batch_id * A_row * A_col + row_id * A_col + col_id;
+    int B_id = batch_id * B_row * B_col + row_id * B_col + col_id;
+    C[A_id] = __half2float(A[A_id]) + __half2float(B[B_id]);
 }
 
 __global__ void layerNorm_kernel(half *feature, int batch, int max_len, int size, half *means, half *std, half *out) {
@@ -104,7 +104,7 @@ __global__ void getMeanAndStd(half *feature, int batch, int max_len, int size, h
     int thx = threadIdx.x;
     float mean = 0, mean_2 = 0;
     for (int i = 0; i < size; i++) {
-        float item = feature[blx * max_len * size + thx * size + i];
+        float item = __half2float(feature[blx * max_len * size + thx * size + i]);
         mean += item / size;
         mean_2 += item / size * item;
     }

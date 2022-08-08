@@ -31,6 +31,11 @@ void Attention::forward(MatrixHalf *inputQ, MatrixHalf *inputK, MatrixHalf *inpu
     inputQ->gemm_batches(Wq, Q, true);
     inputK->gemm_batches(Wk, K, true);
     inputV->gemm_batches(Wv, V, true);
+//    if (which_part == 3) {
+//        Q->print("Q:", true);
+//        K->print("K:", true);
+//    }
+
     // 2. QKV [batch, sen, ebd] -> [batch, head, sen, ebd / head]
     // 多头机制计算本质是reshape    outQ: [batch, heads, sen, ebd / heads]
     auto outQ = new MatrixHalf(Q->getBatch(), Q->getRow(), Q->getCol(), true);
@@ -53,8 +58,11 @@ void Attention::forward(MatrixHalf *inputQ, MatrixHalf *inputK, MatrixHalf *inpu
     // 5. add+layerNorm
     auto add_out = new MatrixHalf(inputQ->getBatch(), inputQ->getRow(), inputQ->getCol(), true);
     attention_out->addMatrix(inputQ, add_out);
+    //add_out->print("add_out", true);
     auto ln_out = new MatrixHalf(inputQ->getBatch(), inputQ->getRow(), inputQ->getCol(), true);
     add_out->layerNorm(ln_out);
+    //ln_out->print("ln_out", true);
+
     ln_out->copyTo(output);
     // 6. free
     concat->free_matrix();
@@ -83,21 +91,26 @@ void Attention::attn(half *Q, half *K, half *V, half *out, int batch, int en_max
             transpose_half<<<grid, block>>>(K + each_block * en_max_len, transK, en_max_len, ebd / heads);
             // 2. QK^T / sqrt(d_k)
             cublas_gemm_device_scale(Q + each_block * de_max_len, transK, de_max_len, ebd / heads, en_max_len, 1.0f / (float)sqrt(ebd), ans);
-            //MatrixHalf::print_device(ans, max_len, max_len);
             // 3. mask
             mask_matrix_gpu<<<en_max_len * de_max_len / 32 + 1, 32>>>(ans, isMasked ? mask2 : mask1, de_max_len, en_max_len);
-            //MatrixHalf::print_device(ans, max_len, max_len);
+            //MatrixHalf::print_device(ans, de_max_len, en_max_len);
             // 4. softmax
-            softmax_cudnn_trans(ans, de_max_len, en_max_len, 1, 1, softmax_out);
-            //softmax_half<<<max_len, max_len>>>(ans, max_len, max_len);
+            //softmax_cudnn_trans(ans, de_max_len, en_max_len, 1, 1, softmax_out);
+            softmax_half<<<de_max_len, en_max_len>>>(ans, de_max_len, en_max_len, softmax_out);
+            //MatrixHalf::print_device(softmax_out, de_max_len, en_max_len);
             // 5. 和V乘
-            //sparse_mma_gemm_device(softmax_out, V + each_block, max_len, max_len, ebd / heads, true, out + each_block);
+            //half *tmp;
+            //CHECK_CUDA(cudaMalloc(&tmp, sizeof(half) * de_max_len * ebd / heads))
+            //sparse_mma_gemm_device(softmax_out, V + each_block * en_max_len, de_max_len, en_max_len,
+            //                       ebd / heads, true, tmp);
             cublas_gemm_device(softmax_out, V + each_block * en_max_len, de_max_len, en_max_len, ebd / heads, out + each_block * de_max_len);
+            //MatrixHalf::cmp(tmp, out + each_block * de_max_len, de_max_len * ebd / heads);
         }
     }
     // free
     cudaFree(transK);
     cudaFree(ans);
+    cudaFree(softmax_out);
 }
 
 

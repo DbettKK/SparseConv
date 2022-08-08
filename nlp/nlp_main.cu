@@ -91,12 +91,12 @@ void test_gemm() {
 }
 
 void test_trans() {
-    auto t = new Transformer(2, 16, 1, 512);
+    auto t = new Transformer(2, 16, 4, 512);
     int *en_in = new int[2 * 16];
-    int *de_in = new int[2 * 1];
+    int *de_in = new int[2 * 4];
     for (int i = 0; i < 2 * 16; i++) en_in[i] = i / 2 + 1;
-    for (int i = 0; i < 2 * 1; i++) de_in[i] = i / 2 + 1;
-    auto out = new MatrixHalf(2, 1, 20, true);
+    for (int i = 0; i < 2 * 4; i++) de_in[i] = i / 2 + 1;
+    auto out = new MatrixHalf(2, 4, 20, true);
     for (int i = 0; i < 12; i++) {
         auto trans_t = new CudaTime();
         trans_t->initAndStart();
@@ -107,7 +107,7 @@ void test_trans() {
 }
 
 int main() {
-    test_gemm_batches();
-    //test_trans();
+    //test_gemm_batches();
+    test_trans();
     return 0;
 }

@@ -99,7 +99,7 @@ void MatrixHalf::transpose(MatrixHalf *out) {
 }
 
 void MatrixHalf::softmax() {
-    softmax_half<<<this->col, this->row>>>(this->matrix, this->row, this->col);
+    softmax_half<<<this->col, this->row>>>(this->matrix, this->row, this->col, nullptr);
 }
 
 void MatrixHalf::print(const std::string& msg, bool is_device) {
@@ -155,16 +155,14 @@ void MatrixHalf::free_matrix() {
 }
 
 void MatrixHalf::relu() {
-    dim3 grid(row / 32 + 1, col / 32 + 1);
-    dim3 block(32, 32);
-    relu_half<<<grid, block>>>(matrix, row, col);
+    relu_half<<<batch * row * col / 32 + 1, 32>>>(matrix, batch * row * col);
 }
 
 void MatrixHalf::addMatrix(MatrixHalf *add, MatrixHalf *out) {
     //this->print("A:", true);
     //add->print("B:", true);
-    dim3 block(row, col);
-    matrix_add<<<batch, block>>>(matrix, add->matrix, out->matrix, batch, row, col, add->row, add->col);
+    dim3 grid(batch, col);
+    matrix_add<<<grid, row>>>(matrix, add->matrix, out->matrix, batch, row, col, add->row, add->col);
 }
 
 void MatrixHalf::copyTo(MatrixHalf *out) {
@@ -197,6 +195,21 @@ MatrixHalf::MatrixHalf(int batch, int row, int col, bool is_device, const std::s
         in.read((char *)matrix, getSize() * sizeof(half));
         in.close();
     }
+}
+
+void MatrixHalf::cmp(half *item1, half *item2, int size) {
+    half *h1 = new half[size];
+    half *h2 = new half[size];
+    CHECK_CUDA(cudaMemcpy(h1, item1, sizeof(half) * size, cudaMemcpyDeviceToHost))
+    CHECK_CUDA(cudaMemcpy(h2, item2, sizeof(half) * size, cudaMemcpyDeviceToHost))
+    int diff = 0;
+    for (int i = 0; i < size; i++) {
+        if (__half2float(h1[i]) != __half2float(h2[i])) {
+            diff++;
+            //printf("diff: %.2f : %.2f\n", __half2float(h1[i]), __half2float(h2[i]));
+        }
+    }
+    printf("total: %d, diff: %d\n", size, diff);
 }
 
 

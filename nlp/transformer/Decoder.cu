@@ -15,6 +15,7 @@ void Decoder::forward(MatrixHalf *input, MatrixHalf *encoder_in, MatrixHalf *out
     self_attn->forward(input, input, input, self_attn_out, layer, 2);
     auto src_attn_out = new MatrixHalf(self_attn_out->getBatch(), self_attn_out->getRow(), self_attn_out->getCol(), true);
     src_attn->forward(self_attn_out, encoder_in, encoder_in, src_attn_out, layer, 3);
+    //src_attn_out->print("src", true);
     mlp->forward(src_attn_out, output, layer, false);
     src_attn_out->free_matrix();
     self_attn_out->free_matrix();

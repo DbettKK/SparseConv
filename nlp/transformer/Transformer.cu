@@ -29,12 +29,14 @@ void Transformer::make_pe(int batch, int max_len, int d_model, MatrixHalf *out) 
             } else {
                 pe[idx] = cos(tmp_pe[i * (d_model / 2 + 1) + j / 2]);
             }
+            //printf("%.2f ", __half2float(pe[i * d_model + j]));
         }
+        //printf("\n");
     }
     half *d_pe;
-    cudaMalloc(&d_pe, sizeof(half) * batch * max_len * d_model);
+    CHECK_CUDA(cudaMalloc(&d_pe, sizeof(half) * batch * max_len * d_model));
     for (int i = 0; i < batch; i++) {
-        cudaMemcpy(d_pe + i * max_len * d_model, pe, sizeof(half) * max_len * d_model, cudaMemcpyHostToDevice);
+        CHECK_CUDA(cudaMemcpy(d_pe + i * max_len * d_model, pe, sizeof(half) * max_len * d_model, cudaMemcpyHostToDevice));
     }
     out->setMatrix(d_pe);
 
@@ -69,10 +71,11 @@ void Transformer::Embedding(const int *in, int max_len, MatrixHalf *out) {
 
 void Transformer::forward(const int *en_in, const int *de_in, MatrixHalf *out) {
     // encoder
-    // 1. embedding
+    // 1. embedding  x Webd
     auto en_ebd_out = new MatrixHalf(batch, en_max_len, d_model, true);
     Embedding(en_in, en_max_len, en_ebd_out);
-    // 2. position encoding
+    //en_ebd_out->print("ebd", true);
+    // 2. position encoding  + W_pe
     auto en_pe_out = new MatrixHalf(batch, en_max_len, d_model, true);
     PositionalEncoding(en_ebd_out, en_pe_out);
     // 3. self-attention + mlp  xN
@@ -91,6 +94,7 @@ void Transformer::forward(const int *en_in, const int *de_in, MatrixHalf *out) {
     de_t->initAndStart();
     auto decoder_out = new MatrixHalf(batch, de_max_len, d_model, true);
     decoder->forwardN(de_pe_out, encoder_out, decoder_out, 6);
+    //decoder_out->print("decoder", true);
     // generator
     // 1. liner
     auto lr_out = new MatrixHalf(batch, de_max_len, target_vocab, true);
@@ -117,6 +121,8 @@ Transformer::Transformer(const int batch, const int enMaxLen, const int deMaxLen
                                 batch(batch), en_max_len(enMaxLen), de_max_len(deMaxLen), d_model(dModel) {
     int max_len = enMaxLen > deMaxLen ? enMaxLen : deMaxLen;
     pe = new MatrixHalf(batch, max_len, dModel, true);
+    make_pe(batch, max_len, dModel, pe);
+    //pe->print("pe:", true);
     W_ebd = new MatrixHalf(1, source_vocab, d_model, true, "../../data/transformer/w_ebd");
     W_last = new MatrixHalf(1, d_model, target_vocab, true, "../../data/transformer/w_last");
     encoder = new Encoder();

@@ -18,7 +18,7 @@ __global__ void reshape_multi_head(half *A, half *B, int row, int col, int heads
  * 对每一列进行 softmax
  * 每一列对应一个block
  */
-__global__ void softmax_half(half *item, int row, int col);
+__global__ void softmax_half(half *item, int row, int col, half *out);
 
 __global__ void transpose_half(half *item, half *out, int row, int col);
 
@@ -26,7 +26,7 @@ __global__ void gemm_simple(half *A, half *B, int m, int k, int n, half *out);
 
 __global__ void mask_matrix_gpu(half *tgt, const int *mask_mat, int row, int col);
 
-__global__ void relu_half(half *item, int row, int col);
+__global__ void relu_half(half *item, int size);
 
 __global__ void matrix_add(half *A, half *B, half *C, int batch, int A_row, int A_col, int B_row, int B_col);
 
