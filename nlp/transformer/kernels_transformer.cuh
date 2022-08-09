@@ -45,6 +45,10 @@ void padCudaMemcpy2D(const half* src, int row, int col, half *dest, int row_padd
 
 void sparse_mma_gemm_device(const half *inputA, const half *inputB, int inputM, int inputK, int inputN, bool isValid, half *outputD);
 
+void sparse_mma_gemm_device_v2(const half *inputA, const half *inputB, int inputM, int inputK, int inputN, bool isValid, half *outputD);
+
+void sparse_mma_gemm_splitK_device(const half *inputA, const half *inputB, int inputM, int inputK, int inputN, bool isValid, half *outputD);
+
 void cusparse_gemm_csr_device(half *sp_A, half *d_B, int m, int k, int n, half *output);
 
 void cusparse_gemm_blocked_device_test();

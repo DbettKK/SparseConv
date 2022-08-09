@@ -54,9 +54,9 @@ void test_spmma_cublas() {
     half *hB = new half[k * n];
     for (int i = 0; i < m * k; i+=2) {
         hA[i] = 0;
-        hA[i + 1] = u(e);
+        hA[i + 1] = 4;
     }
-    for (int i = 0; i < k * n; i++) hB[i] = u(e);
+    for (int i = 0; i < k * n; i++) hB[i] = 5;
 
     half *dA, *dB, *d1, *d2;
     cudaMalloc(&dA, sizeof(half) * m * k);
@@ -66,7 +66,7 @@ void test_spmma_cublas() {
     cudaMemcpy(dA, hA, sizeof(half) * m * k, cudaMemcpyHostToDevice);
     cudaMemcpy(dB, hB, sizeof(half) * n * k, cudaMemcpyHostToDevice);
     cublas_gemm_device(dA, dB, m, k, n, d1);
-    sparse_mma_gemm_device(dA, dB, m, k, n, false, d2);
+    sparse_mma_gemm_splitK_device(dA, dB, m, k, n, false, d2);
 
     half *o1 = new half[m * n];
     half *o2 = new half[m * n];
