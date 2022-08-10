@@ -91,12 +91,12 @@ void test_gemm() {
 }
 
 void test_trans() {
-    auto t = new Transformer(5, 16, 4, 512);
-    int *en_in = new int[5 * 16];
-    int *de_in = new int[5 * 4];
-    for (int i = 0; i < 5 * 16; i++) en_in[i] = i / 2 + 1;
-    for (int i = 0; i < 5 * 4; i++) de_in[i] = i / 2 + 1;
-    auto out = new MatrixHalf(5, 4, 20, true);
+    auto t = new Transformer(2, 64, 64, 512);
+    int *en_in = new int[2 * 64];
+    int *de_in = new int[2 * 64];
+    for (int i = 0; i < 2 * 64; i++) en_in[i] = i / 2 + 1;
+    for (int i = 0; i < 2 * 64; i++) de_in[i] = i / 2 + 1;
+    auto out = new MatrixHalf(2, 64, 120, true);
     for (int i = 0; i < 12; i++) {
         auto trans_t = new CudaTime();
         trans_t->initAndStart();
@@ -108,7 +108,7 @@ void test_trans() {
 
 int main() {
     //test_gemm_batches();
-    test_spmma_cublas();
-    //test_trans();
+    //test_spmma_cublas();
+    test_trans();
     return 0;
 }

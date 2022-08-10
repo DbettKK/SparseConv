@@ -17,7 +17,7 @@ class Transformer {
     Encoder *encoder;
     Decoder *decoder;
     const int batch, en_max_len, de_max_len, d_model;
-    const int source_vocab = 20, target_vocab = 20;
+    const int source_vocab = 120, target_vocab = 120;
 
 public:
     Transformer(int batch, int enMaxLen, int deMaxLen, int dModel);

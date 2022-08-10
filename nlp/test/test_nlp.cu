@@ -123,3 +123,39 @@ void test_spmma_cublas() {
         printf("\n");
     }
 }
+
+void test_spmma_cublas_efficient() {
+    const int M = 64;
+    const int K = 64;
+    const int N = 64;
+    int A_size = M * K;
+    int B_size = N * K;
+    int C_size = M * N;
+
+    std::random_device sd; // sd可以产生一个质量很高的随机数
+    std::default_random_engine e(sd());
+    std::uniform_real_distribution<float> u(0, 5); // 闭区间
+
+    half *hA = new half[A_size];
+    half *hB = new half[B_size];
+    for (int i = 0; i < A_size; i+=2) {
+        hA[i] = u(e);
+        hA[i + 1] = 0;
+    }
+    for (int i = 0; i < B_size; i++) hB[i] = u(e);
+
+    half *dA, *dB, *dOut1, *dOut2;
+    CHECK_CUDA(cudaMalloc(&dA, sizeof(half) * A_size))
+    CHECK_CUDA(cudaMalloc(&dB, sizeof(half) * B_size))
+    CHECK_CUDA(cudaMalloc(&dOut1, sizeof(half) * C_size))
+    CHECK_CUDA(cudaMalloc(&dOut2, sizeof(half) * C_size))
+
+    auto t1 = new CudaTime();
+    auto t2 = new CudaTime();
+    t1->initAndStart();
+    sparse_mma_gemm_device(dA, dB, M, K, N, true, dOut1);
+    printf("spmma time: %fms\n", t1->endAndGetTime());
+    t2->initAndStart();
+    cublas_gemm_device(dA, dB, M, K, N, dOut1);
+    printf("cublas time: %fms\n", t2->endAndGetTime());
+}

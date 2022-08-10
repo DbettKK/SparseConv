@@ -2,9 +2,9 @@ import numpy as np
 
 d_model = 512
 d_ff = 2048
-max_sen_len = 16
-source_vocab = 20
-target_vocab = 20
+max_sen_len = 64
+source_vocab = 120
+target_vocab = 120
 dtype = 'float16'
 N = 6
 

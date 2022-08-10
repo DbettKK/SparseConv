@@ -110,7 +110,7 @@ void MatrixHalf::print(const std::string& msg, bool is_device) {
         for (int b = 0; b < batch; b++) {
             for (int i = 0; i < row; i++) {
                 for (int j = 0; j < col; j++) {
-                    printf("%.2f ", __half2float(tmp[b * row * col + i * col + j]));
+                    printf("%.3f ", __half2float(tmp[b * row * col + i * col + j]));
                 }
                 printf("\n");
             }
