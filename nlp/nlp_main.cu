@@ -108,7 +108,7 @@ void test_trans() {
 
 int main() {
     //test_gemm_batches();
-    //test_spmma_cublas();
-    test_trans();
+    test_spmma_cublas_efficient();
+    //test_trans();
     return 0;
 }

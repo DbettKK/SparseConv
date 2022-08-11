@@ -66,7 +66,7 @@ void test_spmma_cublas() {
     cudaMemcpy(dA, hA, sizeof(half) * m * k, cudaMemcpyHostToDevice);
     cudaMemcpy(dB, hB, sizeof(half) * n * k, cudaMemcpyHostToDevice);
     cublas_gemm_device(dA, dB, m, k, n, d1);
-    sparse_mma_gemm_splitK_device(dA, dB, m, k, n, false, d2);
+    sparse_mma_gemm_device(dA, dB, m, k, n, false, d2);
 
     half *o1 = new half[m * n];
     half *o2 = new half[m * n];
@@ -149,13 +149,17 @@ void test_spmma_cublas_efficient() {
     CHECK_CUDA(cudaMalloc(&dB, sizeof(half) * B_size))
     CHECK_CUDA(cudaMalloc(&dOut1, sizeof(half) * C_size))
     CHECK_CUDA(cudaMalloc(&dOut2, sizeof(half) * C_size))
+    for (int i = 0; i < 10; i++) {
+        auto t1 = new CudaTime();
+        t1->initAndStart();
+        sparse_mma_gemm_device(dA, dB, M, K, N, true, dOut1);
+        printf("spmma time: %fms\n", t1->endAndGetTime());
+    }
+    for (int i = 0; i < 10; i++) {
+        auto t2 = new CudaTime();
+        t2->initAndStart();
+        cublas_gemm_device(dA, dB, M, K, N, dOut1);
+        printf("cublas time: %fms\n", t2->endAndGetTime());
+    }
 
-    auto t1 = new CudaTime();
-    auto t2 = new CudaTime();
-    t1->initAndStart();
-    sparse_mma_gemm_device(dA, dB, M, K, N, true, dOut1);
-    printf("spmma time: %fms\n", t1->endAndGetTime());
-    t2->initAndStart();
-    cublas_gemm_device(dA, dB, M, K, N, dOut1);
-    printf("cublas time: %fms\n", t2->endAndGetTime());
 }
