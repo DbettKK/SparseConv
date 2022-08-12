@@ -19,6 +19,8 @@ public:
 
     void attn(half *Q, half *K, half *V, half *out, int batch, int en_max_len, int de_max_len, int ebd, bool isMasked);
 
+    void attn_batch(half *Q, half *K, half *V, half *out, int batch, int en_max_len, int de_max_len, int* masked);
+
     void make_mask1(int max_len, int *out);
 
     void make_mask2(int max_len, int *out);

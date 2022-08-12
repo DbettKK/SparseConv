@@ -24,6 +24,7 @@ void FeedForward::forward(MatrixHalf *input, MatrixHalf *output, int layer, bool
     auto add_out = new MatrixHalf(input->getBatch(), input->getRow(), input->getCol(), true);
     mo->addMatrix(input, add_out);
     add_out->layerNorm(output);
+    //output->print("ly", true);
     // free
     ff->free_matrix();
     mo->free_matrix();

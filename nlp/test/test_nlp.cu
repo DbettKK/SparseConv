@@ -228,3 +228,46 @@ void test_spmma_batches() {
     printf("e.g.: %.2f, %.2f\n", __half2float(hOut[1]), __half2float(hOut2[1]));
     printf("total: %d, diff: %d\n", size, diff);
 }
+
+void test_transpose_batches() {
+    int batch = 64, m = 16, n = 64;
+    int size = batch * m * n;
+    half *hA = new half[size];
+    for (int i = 0; i < size; i++) hA[i] = rand() % 10;
+
+    half *dA, *dOut, *dOut2;
+    CHECK_CUDA(cudaMalloc(&dA, sizeof(half) * size));
+    CHECK_CUDA(cudaMalloc(&dOut, sizeof(half) * size));
+    CHECK_CUDA(cudaMalloc(&dOut2, sizeof(half) * size));
+    CHECK_CUDA(cudaMemcpy(dA, hA, sizeof(half) * size, cudaMemcpyHostToDevice))
+
+    dim3 grid(batch / 32 + 1, m, n);
+    for (int i = 0; i < 5; i++) {
+        auto tt = new CudaTime();
+        tt->initAndStart();
+        transpose_batches<<<grid, 32>>>(dA, dOut2, batch, m, n);
+        printf("transpose batch time: %fms\n", tt->endAndGetTime());
+    }
+
+    for (int i = 0; i < 5; i++) {
+        auto tt = new CudaTime();
+        tt->initAndStart();
+        for (int j = 0; j < batch; j++) {
+            dim3 g(m / 32 + 1, n / 32 + 1);
+            dim3 t(32, 32);
+            transpose_half<<<g, t>>>(dA + j * m * n, dOut + j * m * n, m, n);
+        }
+        printf("transpose time: %fms\n", tt->endAndGetTime());
+    }
+
+    half *out = new half[size];
+    half *out2 = new half[size];
+    CHECK_CUDA(cudaMemcpy(out, dOut, sizeof(half) * size, cudaMemcpyDeviceToHost))
+    CHECK_CUDA(cudaMemcpy(out2, dOut2, sizeof(half) * size, cudaMemcpyDeviceToHost))
+
+    int diff = 0;
+    for (int i = 0; i < size; i++) {
+        if (__half2float(out[i]) != __half2float(out2[i])) diff++;
+    }
+    printf("total: %d, diff: %d", size, diff);
+}

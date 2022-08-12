@@ -88,8 +88,8 @@ int MatrixHalf::getSize() const {
 }
 
 void MatrixHalf::reshape(MatrixHalf *out, int heads) const {
-    dim3 block(this->batch, heads);
-    dim3 thread(this->row, this->col / heads);
+    dim3 block(this->batch, heads, this->row);
+    dim3 thread(this->col / heads);
     reshape_multi_head<<<block, thread>>>(this->matrix, out->matrix, this->row, this->col, heads);
 }
 

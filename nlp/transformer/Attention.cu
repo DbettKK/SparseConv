@@ -44,8 +44,10 @@ void Attention::forward(MatrixHalf *inputQ, MatrixHalf *inputK, MatrixHalf *inpu
     V->free_matrix();
     // 3. 多头注意力
     auto concat = new MatrixHalf(inputQ->getBatch(), inputQ->getRow(), inputQ->getCol(), true);
-    attn(outQ->getMatrix(), outK->getMatrix(), outV->getMatrix(), concat->getMatrix(),
-         inputQ->getBatch(), inputK->getRow(), inputQ->getRow(), inputQ->getCol(), which_part == 3);
+//    attn(outQ->getMatrix(), outK->getMatrix(), outV->getMatrix(), concat->getMatrix(),
+//         inputQ->getBatch(), inputK->getRow(), inputQ->getRow(), inputQ->getCol(), which_part == 3);
+    attn_batch(outQ->getMatrix(), outK->getMatrix(), outV->getMatrix(), concat->getMatrix(),
+         inputQ->getBatch(), inputK->getRow(), inputQ->getRow(), nullptr);
     // 4. 再一个线性层 运算结果concat并和 W0 运算得到输出
     auto attention_out = new MatrixHalf(inputQ->getBatch(), inputQ->getRow(), inputQ->getCol(), true);
     auto W0 = new MatrixHalf(1, embedding, embedding, true, "../../data/transformer/w0_" + path_suffix);
@@ -95,9 +97,9 @@ void Attention::attn(half *Q, half *K, half *V, half *out, int batch, int en_max
             // 5. 和V乘
             //half *tmp;
             //CHECK_CUDA(cudaMalloc(&tmp, sizeof(half) * de_max_len * ebd / heads))
-            //sparse_mma_gemm_device(softmax_out, V + each_block * en_max_len, de_max_len, en_max_len,
-            //                       ebd / heads, true, out + each_block * de_max_len);
-            cublas_gemm_device(softmax_out, V + each_block * en_max_len, de_max_len, en_max_len, ebd / heads, out + each_block * de_max_len);
+            sparse_mma_gemm_device(softmax_out, V + each_block * en_max_len, de_max_len, en_max_len,
+                                   ebd / heads, true, out + each_block * de_max_len);
+            //cublas_gemm_device(softmax_out, V + each_block * en_max_len, de_max_len, en_max_len, ebd / heads, out + each_block * de_max_len);
             //cusparse_gemm_csr_device(softmax_out, V + each_block * en_max_len, de_max_len, en_max_len, ebd / heads, out + each_block * de_max_len);
             //MatrixHalf::cmp(tmp, out + each_block * de_max_len, de_max_len * ebd / heads);
         }
@@ -106,6 +108,41 @@ void Attention::attn(half *Q, half *K, half *V, half *out, int batch, int en_max
     cudaFree(transK);
     cudaFree(ans);
     cudaFree(softmax_out);
+}
+
+void Attention::attn_batch(half *Q, half *K, half *V, half *out, int batch, int en_max_len, int de_max_len, int *mask) {
+    // Q: [batch, head, de_max_len, ebd / heads]
+    // K,V: [batch, head, en_max_len, ebd / heads]
+    int k_size = batch * embedding * en_max_len;
+    // 1. K转置
+    half *transK;
+    CHECK_CUDA(cudaMalloc(&transK, sizeof(half) * k_size))
+    dim3 grid(batch * heads / 32 + 1, en_max_len, embedding / heads);
+    transpose_batches<<<grid, 32>>>(K, transK, batch * heads, en_max_len, embedding / heads);
+    // 2. QK^T / sqrt(d_k)
+    half *attn_matrix;
+    CHECK_CUDA(cudaMalloc(&attn_matrix, sizeof(half) * batch * heads * de_max_len * en_max_len))
+    cublas_gemm_batches_scale_device(Q, transK, batch * heads, de_max_len, embedding / heads, en_max_len, 1.0f / (float)sqrt(embedding), attn_matrix);
+    // 3. mask
+    if (mask != nullptr) {
+        dim3 grid_mask(batch * heads / 32 + 1, de_max_len, en_max_len);
+        mask_matrix_batches<<<grid_mask, 32>>>(attn_matrix, mask, batch * heads, de_max_len, en_max_len);
+    }
+    // 4.softmax
+    half *softmax_out;
+    CHECK_CUDA(cudaMalloc(&softmax_out, sizeof(half) * batch * heads * de_max_len * en_max_len))
+    for (int i = 0; i < batch * heads; i++) {
+        softmax_half<<<de_max_len, en_max_len>>>(attn_matrix + i * de_max_len * en_max_len,
+                                                 de_max_len, en_max_len, softmax_out + i * de_max_len * en_max_len);
+    }
+    // 5. 和V乘
+    //sparse_mma_gemm_batches_device(softmax_out, V, batch * heads, de_max_len, en_max_len, embedding / heads, true, out);
+    cublas_gemm_batches_device(softmax_out, V, batch * heads, de_max_len, en_max_len, embedding / heads, false, out);
+
+    // 6. free
+    CHECK_CUDA(cudaFree(transK))
+    CHECK_CUDA(cudaFree(attn_matrix))
+    CHECK_CUDA(cudaFree(softmax_out))
 }
 
 
@@ -152,4 +189,6 @@ Attention::Attention(int max_len) {
     make_mask1(max_len, mask1);
     make_mask2(max_len, mask2);
 }
+
+
 

@@ -17,10 +17,10 @@ class Transformer {
     Encoder *encoder;
     Decoder *decoder;
     const int batch, en_max_len, de_max_len, d_model;
-    const int source_vocab = 120, target_vocab = 120;
+    const int source_vocab, target_vocab;
 
 public:
-    Transformer(int batch, int enMaxLen, int deMaxLen, int dModel);
+    Transformer(int batch, int enMaxLen, int deMaxLen, int dModel, int vocab);
 
     void PositionalEncoding(MatrixHalf *in, MatrixHalf *out);
 

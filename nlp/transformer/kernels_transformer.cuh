@@ -22,9 +22,13 @@ __global__ void softmax_half(half *item, int row, int col, half *out);
 
 __global__ void transpose_half(half *item, half *out, int row, int col);
 
+__global__ void transpose_batches(half *item, half *out, int batch, int row, int col);
+
 __global__ void gemm_simple(half *A, half *B, int m, int k, int n, half *out);
 
 __global__ void mask_matrix_gpu(half *tgt, const int *mask_mat, int row, int col);
+
+__global__ void mask_matrix_batches(half *tgt, const int *mask_mat, int batch, int row, int col);
 
 __global__ void relu_half(half *item, int size);
 
@@ -34,12 +38,15 @@ __global__ void layerNorm_kernel(half *feature, int batch, int max_len, int size
 
 __global__ void getMeanAndStd(half *feature, int batch, int max_len, int size, half *means, half *std);
 
+void cublas_transpose(half *in, half *out, int batch, int row, int col);
 /* 得到的 output 为转置后的 */
 void cublas_gemm_device(const half *d_A, const half *d_B, int inputM, int inputK, int inputN, half *output);
 
 void cublas_gemm_device_scale(const half *d_A, const half *d_B, int inputM, int inputK, int inputN, float scale, half *output);
 
 void cublas_gemm_batches_device(half *d_A, half *d_B, int batch, int inputM, int inputK, int inputN, bool isSingleBatch, half *output);
+
+void cublas_gemm_batches_scale_device(half *d_A, half *d_B, int batch, int inputM, int inputK, int inputN, float scale, half *output);
 
 void padCudaMemcpy2D(const half* src, int row, int col, half *dest, int row_padding, int col_padding);
 
