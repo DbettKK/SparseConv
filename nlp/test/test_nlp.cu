@@ -163,3 +163,68 @@ void test_spmma_cublas_efficient() {
     }
 
 }
+
+void test_spmma_batches() {
+    const int batch = 64, row = 16, col = 16;
+    int size = batch * row * col;
+    half *hA = new half[size];
+    half *hB = new half[size];
+    for (int i = 0; i < size; i+=2) {
+        hA[i] = 4;
+        hA[i + 1] = 0;
+        hB[i] = 5;
+        hB[i + 1] = 5;
+        //hA[i] = 2;
+        //hB[i] = 3;
+    }
+    half *hOut = new half[size];
+    half *hOut2 = new half[size];
+    half *dA, *dB, *dOut, *dOut2;
+    CHECK_CUDA(cudaMalloc(&dA, sizeof(half) * size))
+    CHECK_CUDA(cudaMalloc(&dB, sizeof(half) * size))
+    CHECK_CUDA(cudaMalloc(&dOut, sizeof(half) * size))
+    CHECK_CUDA(cudaMalloc(&dOut2, sizeof(half) * size))
+    CHECK_CUDA(cudaMemcpy(dA, hA, sizeof(half) * size, cudaMemcpyHostToDevice))
+    CHECK_CUDA(cudaMemcpy(dB, hB, sizeof(half) * size, cudaMemcpyHostToDevice))
+    for (int j = 0; j < 4; j++) {
+        auto tt = new CudaTime();
+        tt->initAndStart();
+        for (int i = 0; i < batch; i++) {
+            int each = i * row * col;
+            sparse_mma_gemm_device(dA + each, dB + each, row, row, row, true, dOut + each);
+        }
+        printf("spmma time: %fms\n", tt->endAndGetTime());
+    }
+    for (int j = 0; j < 4; j++) {
+        auto tt1 = new CudaTime();
+        tt1->initAndStart();
+        for (int i = 0; i < batch; i++) {
+            int each = i * row * col;
+            cublas_gemm_device(dA + each, dB + each, row, row, row, dOut + each);
+        }
+        printf("cublas time: %fms\n", tt1->endAndGetTime());
+    }
+    for (int i = 0; i < 4; i++) {
+        auto tt2 = new CudaTime();
+        tt2->initAndStart();
+        sparse_mma_gemm_batches_device(dA, dB, batch, row, row, row, true, dOut);
+        printf("spmma batch time: %fms\n", tt2->endAndGetTime());
+    }
+    for (int i = 0; i < 4; i++) {
+        auto tt3 = new CudaTime();
+        tt3->initAndStart();
+        cublas_gemm_batches_device(dA, dB, batch, row, row, row, false, dOut2);
+        printf("cublas batch time: %fms\n", tt3->endAndGetTime());
+    }
+    CHECK_CUDA(cudaMemcpy(hOut, dOut, sizeof(half) * size, cudaMemcpyDeviceToHost))
+    CHECK_CUDA(cudaMemcpy(hOut2, dOut2, sizeof(half) * size, cudaMemcpyDeviceToHost))
+    int diff = 0;
+    for (int i = 0; i < size; i++) {
+        if (__half2float(hOut[i]) != __half2float(hOut2[i])) {
+            diff++;
+            printf("diff: %f : %f\n", __half2float(hOut[i]), __half2float(hOut2[i]));
+        }
+    }
+    printf("e.g.: %.2f, %.2f\n", __half2float(hOut[1]), __half2float(hOut2[1]));
+    printf("total: %d, diff: %d\n", size, diff);
+}

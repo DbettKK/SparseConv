@@ -14,4 +14,6 @@ void test_spmma_cublas();
 
 void test_spmma_cublas_efficient();
 
+void test_spmma_batches();
+
 #endif //SPARSECONV_TEST_NLP_CUH

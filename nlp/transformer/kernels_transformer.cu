@@ -408,9 +408,9 @@ void sparse_mma_gemm_batches_device(const half *inputA, const half *inputB, int 
     int k = inputK % 16 ? inputK + 16 - inputK % 16 : inputK;
     int n = inputN % 8 ? inputN + 8 - inputN % 8 : inputN;
 
-    size_t A_size = m * k * sizeof(half);
-    size_t B_size = k * n * sizeof(half);
-    size_t C_size = m * n * sizeof(half);
+    size_t A_size = batch * m * k * sizeof(half);
+    size_t B_size = batch * k * n * sizeof(half);
+    size_t C_size = batch * m * n * sizeof(half);
     // device
     half *dA, *dB, *dC, *dD, *dA_compressed;
     int *d_valid;
@@ -426,8 +426,10 @@ void sparse_mma_gemm_batches_device(const half *inputA, const half *inputB, int 
     CHECK_CUDA(cudaMalloc((void **) &dA, A_size))
     CHECK_CUDA(cudaMalloc((void **) &dB, B_size))
     // padding to match mma.sp
-    padCudaMemcpy2D(inputA, inputM, inputK, dA, m, k);
-    padCudaMemcpy2D(inputB, inputK, inputN, dB, k, n);
+    for (int i = 0; i < batch; i++) {
+        padCudaMemcpy2D(inputA + i * inputM * inputK, inputM, inputK, dA + i * m * k, m, k);
+        padCudaMemcpy2D(inputB + i * inputK * inputN, inputK, inputN, dB + i * n * k, k, n);
+    }
     //printf("pad time: %fms\t", ttt->endAndGetTime());
     // Leading dimension 如果行优先则代表列数
     int lda = k, ldb = n, ldc = n;
@@ -455,7 +457,7 @@ void sparse_mma_gemm_batches_device(const half *inputA, const half *inputB, int 
     CHECK_CUSPARSE(cusparseLtDenseDescriptorInit(&handle, &matB, k, n, ldb, alignment, type, order))
     CHECK_CUSPARSE(cusparseLtDenseDescriptorInit(&handle, &matC, m, n, ldc, alignment, type, order))
     // batch
-    int batch_strideA = m * k, batch_strideB = n * k, batch_strideC = m * n;
+    int64_t batch_strideA = m * k, batch_strideB = n * k, batch_strideC = m * n;
     CHECK_CUSPARSE(cusparseLtMatDescSetAttribute(&handle, &matA, CUSPARSELT_MAT_NUM_BATCHES, &batch, sizeof(batch)))
     CHECK_CUSPARSE(cusparseLtMatDescSetAttribute(&handle, &matB, CUSPARSELT_MAT_NUM_BATCHES, &batch, sizeof(batch)))
     CHECK_CUSPARSE(cusparseLtMatDescSetAttribute(&handle, &matC, CUSPARSELT_MAT_NUM_BATCHES, &batch, sizeof(batch)))
@@ -508,9 +510,10 @@ void sparse_mma_gemm_batches_device(const half *inputA, const half *inputB, int 
     //--------------------------------------------------------------------------
 
     // padding后的fix
-    CHECK_CUDA(cudaMemcpy2D(outputD, inputN * sizeof(half), dD, n * sizeof(half), inputN * sizeof(half), inputM,
-                            cudaMemcpyDeviceToDevice))
-
+    for (int i = 0; i < batch; i++) {
+        CHECK_CUDA(cudaMemcpy2D(outputD + i * inputM * inputN, inputN * sizeof(half), dD + i * m * n, n * sizeof(half),
+                                inputN * sizeof(half), inputM, cudaMemcpyDeviceToDevice))
+    }
     CHECK_CUDA( cudaFree(dA_compressed) )
     CHECK_CUDA( cudaFree(dA) )
     CHECK_CUDA( cudaFree(dB) )
