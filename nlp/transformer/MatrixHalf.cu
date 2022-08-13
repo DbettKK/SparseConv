@@ -161,6 +161,7 @@ void MatrixHalf::relu() {
 void MatrixHalf::addMatrix(MatrixHalf *add, MatrixHalf *out) {
     //this->print("A:", true);
     //add->print("B:", true);
+
     dim3 grid(batch, col);
     matrix_add<<<grid, row>>>(matrix, add->matrix, out->matrix, batch, row, col, add->row, add->col);
 }

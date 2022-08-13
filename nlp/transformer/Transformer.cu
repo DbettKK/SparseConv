@@ -46,6 +46,44 @@ void Transformer::make_pe(int batch, int max_len, int d_model, MatrixHalf *out) 
 }
 
 
+void Transformer::make_mask_spmma(int row, int col, int *out) {
+    // 从主对角线开始 隔两个对角线的值不mask
+    int *h_mask = new int[row * col];
+    memset(h_mask, 0, sizeof(int) * row * col);
+    int max_num = (col - 1) / 3;
+    for (int i = 0; i < row; i++) {
+        for (int j = 0; j < col; j++) {
+            for (int k = 0; k <= max_num; k++) {
+                if (i == j + k * 3) h_mask[i * col + j] = 1;
+                if (j == i + k * 3) h_mask[i * col + j] = 1;
+            }
+        }
+    }
+    cudaMemcpy(out, h_mask, sizeof(int) * row * col, cudaMemcpyHostToDevice);
+}
+
+void Transformer::make_mask_src(int row, int col, int *out) {
+    // 从主对角线开始 隔两个对角线的值不mask
+    int *h_mask = new int[row * col];
+    memset(h_mask, 0, sizeof(int) * row * col);
+    int max_num = (col - 1) / 3;
+    for (int i = 0; i < row; i++) {
+        for (int j = 0; j < col; j++) {
+            for (int k = 0; k <= max_num; k++) {
+                if (i == j + k * 3) h_mask[i * col + j] = 1;
+                if (j == i + k * 3) h_mask[i * col + j] = 1;
+            }
+        }
+    }
+    for (int i = 0; i < row; i++) {
+        for (int j = 0; j < col; j++) {
+            if (j > i) h_mask[i * col + j] = 0;
+        }
+    }
+    cudaMemcpy(out, h_mask, sizeof(int) * row * col, cudaMemcpyHostToDevice);
+
+}
+
 void Transformer::Embedding(const int *in, int max_len, MatrixHalf *out) {
     // in: [batch, max_len] type: INT/LONG  HOST
     // out: [batch, max_len, embedding_dim]
@@ -126,8 +164,15 @@ Transformer::Transformer(const int batch, const int enMaxLen, const int deMaxLen
     //pe->print("pe:", true);
     W_ebd = new MatrixHalf(1, source_vocab, d_model, true, "../../data/transformer/w_ebd");
     W_last = new MatrixHalf(1, d_model, target_vocab, true, "../../data/transformer/w_last");
-    encoder = new Encoder();
-    encoder->init(enMaxLen);
-    decoder = new Decoder();
-    decoder->init(enMaxLen);
+    // mask
+    int *mask_en_spmma, *mask_de_spmma, *mask_de_src;
+    CHECK_CUDA(cudaMalloc(&mask_en_spmma, sizeof(int) * enMaxLen * enMaxLen))
+    CHECK_CUDA(cudaMalloc(&mask_de_spmma, sizeof(int) * deMaxLen * enMaxLen))
+    CHECK_CUDA(cudaMalloc(&mask_de_src, sizeof(int) * deMaxLen * enMaxLen))
+    make_mask_spmma(enMaxLen, enMaxLen, mask_en_spmma);
+    make_mask_spmma(deMaxLen, enMaxLen, mask_de_spmma);
+    make_mask_src(deMaxLen, enMaxLen, mask_de_src);
+
+    encoder = new Encoder(mask_en_spmma);
+    decoder = new Decoder(mask_de_spmma, mask_de_src);
 }

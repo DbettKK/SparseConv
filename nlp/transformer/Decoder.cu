@@ -4,17 +4,11 @@
 
 #include "Decoder.cuh"
 
-void Decoder::init(int max_len) {
-    self_attn = new Attention(max_len);
-    src_attn = new Attention(max_len);
-    mlp = new FeedForward();
-}
-
 void Decoder::forward(MatrixHalf *input, MatrixHalf *encoder_in, MatrixHalf *output, int layer) {
     auto self_attn_out = new MatrixHalf(input->getBatch(), input->getRow(), input->getCol(), true);
-    self_attn->forward(input, input, input, self_attn_out, layer, 2);
+    self_attn->forward(input, input, input, self_attn_out, layer, 2, mask1);
     auto src_attn_out = new MatrixHalf(self_attn_out->getBatch(), self_attn_out->getRow(), self_attn_out->getCol(), true);
-    src_attn->forward(self_attn_out, encoder_in, encoder_in, src_attn_out, layer, 3);
+    src_attn->forward(self_attn_out, encoder_in, encoder_in, src_attn_out, layer, 3, mask2);
     //src_attn_out->print("src", true);
     mlp->forward(src_attn_out, output, layer, false);
     src_attn_out->free_matrix();
@@ -30,4 +24,10 @@ void Decoder::forwardN(MatrixHalf *input, MatrixHalf *encoder_in, MatrixHalf *ou
     }
     input->copyTo(output);
     //input->free_matrix();
+}
+
+Decoder::Decoder(int *mask1, int *mask2) : mask1(mask1), mask2(mask2) {
+    self_attn = new Attention();
+    src_attn = new Attention();
+    mlp = new FeedForward();
 }

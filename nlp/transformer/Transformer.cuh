@@ -26,6 +26,10 @@ public:
 
     void Embedding(const int *in, int max_len, MatrixHalf *out);
 
+    void make_mask_spmma(int row, int col, int *out);
+
+    void make_mask_src(int row, int col, int *out);
+
     static void make_pe(int batch, int max_len, int d_model, MatrixHalf *out);
 
     void forward(const int *en_in, const int *de_in, MatrixHalf *out);

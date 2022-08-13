@@ -10,10 +10,11 @@
 #include "FeedForward.cuh"
 
 class Decoder {
+    int *mask1, *mask2;
     Attention *self_attn, *src_attn;
     FeedForward *mlp;
 public:
-    void init(int max_len);
+    Decoder(int *mask1, int *mask2);
     void forward(MatrixHalf *input, MatrixHalf *encoder_in, MatrixHalf *output, int layer);
     void forwardN(MatrixHalf *input, MatrixHalf *encoder_in, MatrixHalf *output, int N);
 };

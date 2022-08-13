@@ -43,8 +43,7 @@ __global__ void softmax_half(half *item, const int row, const int col, half *out
 //        }
 //        out[blx * col + thx] = expf(mem[blx][thx] - max) / sum;
 //    }
-    __shared__ float mem[513], max_s;
-    __shared__ double sum_s;
+    __shared__ float mem[513];
     const int blx = blockIdx.x;  // row
     const int thx = threadIdx.x; // col
     if (thx < col && blx < row) {
@@ -1218,11 +1217,11 @@ void cusparse_gemm_csr_device_test() {
     // device result check
     CHECK_CUDA( cudaMemcpy(hC, dC, C_size * sizeof(float),
                            cudaMemcpyDeviceToHost) )
-    int correct = 1;
+    //int correct = 1;
     for (int i = 0; i < A_num_rows; i++) {
         for (int j = 0; j < B_num_cols; j++) {
             if (hC[i + j * ldc] != hC_result[i + j * ldc]) {
-                correct = 0; // direct floating point comparison is not reliable
+                //correct = 0; // direct floating point comparison is not reliable
                 break;
             }
         }

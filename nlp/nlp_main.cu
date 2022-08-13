@@ -101,7 +101,7 @@ void test_trans() {
         auto trans_t = new CudaTime();
         trans_t->initAndStart();
         t->forward(en_in, de_in, out);
-        //out->print("out", true);
+        out->print("out", true);
         printf("trans time: %fms\n", trans_t->endAndGetTime());
     }
 }

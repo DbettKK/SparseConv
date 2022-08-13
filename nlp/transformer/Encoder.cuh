@@ -11,10 +11,11 @@
 #include "FeedForward.cuh"
 
 class Encoder {
+    int *mask;
     Attention *attn;
     FeedForward *mlp;
 public:
-    void init(int max_len);
+    explicit Encoder(int *mask);
     void forward(MatrixHalf *input, MatrixHalf *output, int layer);
     void forwardN(MatrixHalf *input, MatrixHalf *output, int N);
 };
