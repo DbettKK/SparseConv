@@ -20,6 +20,10 @@ __global__ void reshape_multi_head(half *A, half *B, int row, int col, int heads
  */
 __global__ void softmax_half(half *item, int row, int col, half *out);
 
+__global__ void softmax_batches(half *item, const int batch, const int row, const int col, half *out);
+
+__global__ void softmax_half_v2(half *item, const int row, const int col, half *out);
+
 __global__ void transpose_half(half *item, half *out, int row, int col);
 
 __global__ void transpose_batches(half *item, half *out, int batch, int row, int col);

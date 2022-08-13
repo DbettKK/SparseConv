@@ -273,21 +273,86 @@ void test_transpose_batches() {
 }
 
 void test_softmax() {
-    half *hA = new half[5 * 5];
-    for (int i = 0; i < 25; i++) hA[i] = i;
+    int batch = 64, row = 16, col = 64;
+    int size = batch * row * col;
+    half *hA = new half[size];
+    for (int i = 0; i < size; i++) hA[i] = i;
 
-    half *dA, *dOut;
-    cudaMalloc(&dA, sizeof(half) * 25);
-    cudaMalloc(&dOut, sizeof(half) * 25);
-    cudaMemcpy(dA, hA, sizeof(half) * 25, cudaMemcpyHostToDevice);
-    softmax_half<<<5, 5>>>(dA, 5, 5, dOut);
-    half *hOut = new half[25];
-    cudaMemcpy(hOut, dOut, sizeof(half) * 25, cudaMemcpyDeviceToHost);
+    half *dA, *dOut, *dOut2;
+    cudaMalloc(&dA, sizeof(half) * size);
+    cudaMalloc(&dOut, sizeof(half) * size);
+    cudaMalloc(&dOut2, sizeof(half) * size);
+    cudaMemcpy(dA, hA, sizeof(half) * size, cudaMemcpyHostToDevice);
+
+
+    half *hOut = new half[size];
+    half *hOut2 = new half[size];
     for (int i = 0; i < 5; i++) {
-        for (int j = 0; j < 5; j++) {
-            printf("%.2f ", __half2float(hOut[i * 5 + j]));
+        auto tt0 = new CudaTime();
+        tt0->initAndStart();
+        dim3 grid(row, batch);
+        softmax_batches<<<grid, col>>>(dA, batch, row, col, dOut);
+        printf("v1 time: %fms\n", tt0->endAndGetTime());
+    }
+    for (int i = 0; i < 5; i++) {
+        auto tt1 = new CudaTime();
+        tt1->initAndStart();
+        for (int j = 0; j < batch; j++) {
+            softmax_half_v2<<<row, col>>>(dA + i * col * row, col, col, dOut2 + i * col * row);
+
         }
-        printf("\n");
+        printf("v2 time: %fms\n", tt1->endAndGetTime());
     }
 
+
+    cudaMemcpy(hOut, dOut, sizeof(half) * 1024, cudaMemcpyDeviceToHost);
+    cudaMemcpy(hOut2, dOut2, sizeof(half) * 1024, cudaMemcpyDeviceToHost);
+
+    int diff = 0;
+    for (int i = 0; i < size; i++) {
+        if (__half2float(hOut[i]) != __half2float(hOut2[i])) diff++;
+    }
+    printf("total: %d, diff: %d", size, diff);
+//    for (int i = 0; i < 16; i++) {
+//        for (int j = 0; j < 64; j++) {
+//            printf("%.2f ", __half2float(hOut[i * 64 + j]));
+//        }
+//        printf("\n");
+//    }
+//    for (int i = 0; i < 16; i++) {
+//        for (int j = 0; j < 64; j++) {
+//            printf("%.2f ", __half2float(hOut2[i * 64 + j]));
+//        }
+//        printf("\n");
+//    }
+}
+
+__global__ void share(half *item, int size, half *sum) {
+    // 优化：先把所有元素放入share memory
+    __shared__ float mem;
+    int tid = threadIdx.x;
+    if (tid == 1) {
+        float s = 0;
+        for (int i = 0; i < size; i++) {
+            s += __half2float(item[i]);
+        }
+        mem = s;
+    }
+    __syncthreads();
+
+    sum[tid] = mem;
+}
+
+void test_shared_mem() {
+    half *item = new half[32];
+    for (int i = 0; i < 32; i++) item[i] = 2;
+    half *dA, *dOut;
+    cudaMalloc(&dA, sizeof(half) * 32);
+    cudaMalloc(&dOut, sizeof(half) * 32);
+    cudaMemcpy(dA, item, sizeof(half) * 32, cudaMemcpyHostToDevice);
+
+    share<<<1, 32>>>(dA, 32, dOut);
+    half *out = new half[32];
+    cudaMemcpy(out, dOut, sizeof(half) * 32, cudaMemcpyDeviceToHost);
+    for (int i = 0; i < 32; i++) printf("%d ", __half2int_rz(out[i]));
 }

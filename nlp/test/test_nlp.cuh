@@ -20,4 +20,5 @@ void test_transpose_batches();
 
 void test_softmax();
 
+void test_shared_mem();
 #endif //SPARSECONV_TEST_NLP_CUH

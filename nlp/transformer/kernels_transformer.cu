@@ -43,7 +43,8 @@ __global__ void softmax_half(half *item, const int row, const int col, half *out
 //        }
 //        out[blx * col + thx] = expf(mem[blx][thx] - max) / sum;
 //    }
-    __shared__ float mem[513];
+    __shared__ float mem[513], max_s;
+    __shared__ double sum_s;
     const int blx = blockIdx.x;  // row
     const int thx = threadIdx.x; // col
     if (thx < col && blx < row) {
@@ -60,6 +61,61 @@ __global__ void softmax_half(half *item, const int row, const int col, half *out
             sum += expf(mem[i] - max);
         }
         out[blx * col + thx] = expf(mem[thx] - max) / sum;
+    }
+}
+
+__global__ void softmax_half_v2(half *item, const int row, const int col, half *out) {
+    __shared__ float mem[513], max_s;
+    __shared__ double sum_s;
+    const int blx = blockIdx.x;  // row
+    const int thx = threadIdx.x; // col
+    if (thx < col && blx < row) {
+        mem[thx] = __half2float(item[blx * col + thx]);
+    }
+    __syncthreads();
+    if (thx < col && blx < row) {
+        if (thx == 0) {
+            float max = -65504;
+            for (int i = 0; i < col; i++) {
+                if (max <= mem[i]) max = mem[i];
+            }
+            double sum = 0;
+            for (int i = 0; i < col; i++) {
+                sum += expf(mem[i] - max);
+            }
+            sum_s = sum;
+            max_s = max;
+        }
+        __syncthreads();
+        out[blx * col + thx] = expf(mem[thx] - max_s) / sum_s;
+    }
+}
+
+__global__ void softmax_batches(half *item, const int batch, const int row, const int col, half *out) {
+    __shared__ float mem[513], max_s;
+    __shared__ double sum_s;
+    const int blx = blockIdx.x;  // row
+    const int batch_id = blockIdx.y;
+    const int thx = threadIdx.x; // col
+    if (thx < col && blx < row) {
+        mem[thx] = __half2float(item[batch_id * row * col + blx * col + thx]);
+    }
+    __syncthreads();
+    if (thx < col && blx < row) {
+        if (thx == 0) {
+            float max = -65504;
+            for (int i = 0; i < col; i++) {
+                if (max <= mem[i]) max = mem[i];
+            }
+            double sum = 0;
+            for (int i = 0; i < col; i++) {
+                sum += expf(mem[i] - max);
+            }
+            sum_s = sum;
+            max_s = max;
+        }
+        __syncthreads();
+        out[batch_id * row * col + blx * col + thx] = expf(mem[thx] - max_s) / sum_s;
     }
 }
 

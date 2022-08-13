@@ -113,29 +113,31 @@ void Attention::attn(half *Q, half *K, half *V, half *out, int batch, int en_max
 void Attention::attn_batch(half *Q, half *K, half *V, half *out, int batch, int en_max_len, int de_max_len, int *mask) {
     // Q: [batch, head, de_max_len, ebd / heads]
     // K,V: [batch, head, en_max_len, ebd / heads]
+
+    // 0. 相关参数init
     int k_size = batch * embedding * en_max_len;
-    // 1. K转置
-    half *transK;
+    half *transK, *attn_matrix, *softmax_out;
     CHECK_CUDA(cudaMalloc(&transK, sizeof(half) * k_size))
+    CHECK_CUDA(cudaMalloc(&attn_matrix, sizeof(half) * batch * heads * de_max_len * en_max_len))
+    CHECK_CUDA(cudaMalloc(&softmax_out, sizeof(half) * batch * heads * de_max_len * en_max_len))
+
+    // 1. K转置
     dim3 grid(batch * heads / 32 + 1, en_max_len, embedding / heads);
     transpose_batches<<<grid, 32>>>(K, transK, batch * heads, en_max_len, embedding / heads);
+
     // 2. QK^T / sqrt(d_k)
-    half *attn_matrix;
-    CHECK_CUDA(cudaMalloc(&attn_matrix, sizeof(half) * batch * heads * de_max_len * en_max_len))
     cublas_gemm_batches_scale_device(Q, transK, batch * heads, de_max_len, embedding / heads, en_max_len, 1.0f / (float)sqrt(embedding), attn_matrix);
+
     // 3. mask
     if (mask != nullptr) {
         dim3 grid_mask(batch * heads / 32 + 1, de_max_len, en_max_len);
         mask_matrix_batches<<<grid_mask, 32>>>(attn_matrix, mask, batch * heads, de_max_len, en_max_len);
     }
+
     // 4.softmax
-    half *softmax_out;
-    CHECK_CUDA(cudaMalloc(&softmax_out, sizeof(half) * batch * heads * de_max_len * en_max_len))
-    for (int i = 0; i < batch * heads; i++) {
-        softmax_half<<<de_max_len, en_max_len>>>(attn_matrix + i * de_max_len * en_max_len,
-                                                 de_max_len, en_max_len, softmax_out + i * de_max_len * en_max_len);
-    }
-    //MatrixHalf::print_device(softmax_out, batch * heads * de_max_len, en_max_len);
+    dim3 grid_softmax(de_max_len, batch * heads);
+    softmax_batches<<<grid_softmax, en_max_len>>>(attn_matrix, batch * heads, de_max_len, en_max_len, softmax_out);
+
     // 5. 和V乘
     //sparse_mma_gemm_batches_device(softmax_out, V, batch * heads, de_max_len, en_max_len, embedding / heads, true, out);
     cublas_gemm_batches_device(softmax_out, V, batch * heads, de_max_len, en_max_len, embedding / heads, false, out);
