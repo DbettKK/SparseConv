@@ -24,23 +24,42 @@ bool check_sparse(half *item, int row, int col) {
 }
 
 __global__ void softmax_half(half *item, const int row, const int col, half *out) {
-    __shared__ float mem[64][64]; // 记录
+    // todo: row, col > 256怎么办
+//    __shared__ float mem[64][64]; // 记录
+//    const int blx = blockIdx.x;  // row
+//    const int thx = threadIdx.x; // col
+//    if (thx < col && blx < row) {
+//        mem[blx][thx] = __half2float(item[blx * col + thx]); // 传入
+//    }
+//    __syncthreads();
+//    if (thx < col && blx < row) {
+//        float max = -65504;
+//        for (int i = 0; i < col; i++) {
+//            if (max <= mem[blx][i]) max = mem[blx][i];
+//        }
+//        double sum = 0;
+//        for (int i = 0; i < col; i++) {
+//            sum += expf(mem[blx][i] - max);
+//        }
+//        out[blx * col + thx] = expf(mem[blx][thx] - max) / sum;
+//    }
+    __shared__ float mem[513];
     const int blx = blockIdx.x;  // row
     const int thx = threadIdx.x; // col
     if (thx < col && blx < row) {
-        mem[blx][thx] = __half2float(item[blx * col + thx]); // 传入
+        mem[thx] = __half2float(item[blx * col + thx]);
     }
     __syncthreads();
     if (thx < col && blx < row) {
         float max = -65504;
         for (int i = 0; i < col; i++) {
-            if (max <= mem[blx][i]) max = mem[blx][i];
+            if (max <= mem[i]) max = mem[i];
         }
         double sum = 0;
         for (int i = 0; i < col; i++) {
-            sum += expf(mem[blx][i] - max);
+            sum += expf(mem[i] - max);
         }
-        out[blx * col + thx] = expf(mem[blx][thx] - max) / sum;
+        out[blx * col + thx] = expf(mem[thx] - max) / sum;
     }
 }
 

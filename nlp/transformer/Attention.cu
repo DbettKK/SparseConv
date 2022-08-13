@@ -135,6 +135,7 @@ void Attention::attn_batch(half *Q, half *K, half *V, half *out, int batch, int 
         softmax_half<<<de_max_len, en_max_len>>>(attn_matrix + i * de_max_len * en_max_len,
                                                  de_max_len, en_max_len, softmax_out + i * de_max_len * en_max_len);
     }
+    //MatrixHalf::print_device(softmax_out, batch * heads * de_max_len, en_max_len);
     // 5. 和V乘
     //sparse_mma_gemm_batches_device(softmax_out, V, batch * heads, de_max_len, en_max_len, embedding / heads, true, out);
     cublas_gemm_batches_device(softmax_out, V, batch * heads, de_max_len, en_max_len, embedding / heads, false, out);

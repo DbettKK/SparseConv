@@ -18,4 +18,6 @@ void test_spmma_batches();
 
 void test_transpose_batches();
 
+void test_softmax();
+
 #endif //SPARSECONV_TEST_NLP_CUH

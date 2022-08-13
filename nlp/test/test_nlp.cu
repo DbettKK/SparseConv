@@ -52,7 +52,7 @@ void test_spmma_cublas() {
     int m = 4, k = 16, n = 64;
     half *hA = new half[m * k];
     half *hB = new half[k * n];
-    for (int i = 0; i < m * k; i+=2) {
+    for (int i = 0; i < m * k; i += 2) {
         hA[i] = 0;
         hA[i + 1] = 4;
     }
@@ -138,7 +138,7 @@ void test_spmma_cublas_efficient() {
 
     half *hA = new half[A_size];
     half *hB = new half[B_size];
-    for (int i = 0; i < A_size; i+=2) {
+    for (int i = 0; i < A_size; i += 2) {
         hA[i] = u(e);
         hA[i + 1] = 0;
     }
@@ -169,7 +169,7 @@ void test_spmma_batches() {
     int size = batch * row * col;
     half *hA = new half[size];
     half *hB = new half[size];
-    for (int i = 0; i < size; i+=2) {
+    for (int i = 0; i < size; i += 2) {
         hA[i] = 4;
         hA[i + 1] = 0;
         hB[i] = 5;
@@ -270,4 +270,24 @@ void test_transpose_batches() {
         if (__half2float(out[i]) != __half2float(out2[i])) diff++;
     }
     printf("total: %d, diff: %d", size, diff);
+}
+
+void test_softmax() {
+    half *hA = new half[5 * 5];
+    for (int i = 0; i < 25; i++) hA[i] = i;
+
+    half *dA, *dOut;
+    cudaMalloc(&dA, sizeof(half) * 25);
+    cudaMalloc(&dOut, sizeof(half) * 25);
+    cudaMemcpy(dA, hA, sizeof(half) * 25, cudaMemcpyHostToDevice);
+    softmax_half<<<5, 5>>>(dA, 5, 5, dOut);
+    half *hOut = new half[25];
+    cudaMemcpy(hOut, dOut, sizeof(half) * 25, cudaMemcpyDeviceToHost);
+    for (int i = 0; i < 5; i++) {
+        for (int j = 0; j < 5; j++) {
+            printf("%.2f ", __half2float(hOut[i * 5 + j]));
+        }
+        printf("\n");
+    }
+
 }
