@@ -168,74 +168,71 @@ void test_spmma_batches() {
     std::random_device sd; // sd可以产生一个质量很高的随机数
     std::default_random_engine e(sd());
     std::uniform_real_distribution<float> u(0, 5); // 闭区间
-    const int batch = 64, row = 256, col = 256;
-    int size = batch * row * col;
-    half *hA = new half[size];
-    half *hB = new half[size];
-    for (int i = 0; i < size; i += 2) {
+    const int batch = 64, m = 256, k = 256, n = 64;
+    int out_size = batch * m * n;
+    half *hA = new half[batch * m * k];
+    half *hB = new half[batch * n * k];
+    for (int i = 0; i < batch * m * k; i+=2) {
         hA[i] = u(e);
         hA[i + 1] = 0;
-        hB[i] = u(e);
-        hB[i + 1] = u(e);
-        //hA[i] = 2;
-        //hB[i] = 3;
     }
-    half *hOut = new half[size];
-    half *hOut2 = new half[size];
+    for (int i = 0; i < batch * n * k; i++) {
+        hB[i] = u(e);
+    }
+    half *hOut = new half[out_size];
+    half *hOut2 = new half[out_size];
     half *dA, *dB, *dOut, *dOut2;
-    CHECK_CUDA(cudaMalloc(&dA, sizeof(half) * size))
-    CHECK_CUDA(cudaMalloc(&dB, sizeof(half) * size))
-    CHECK_CUDA(cudaMalloc(&dOut, sizeof(half) * size))
-    CHECK_CUDA(cudaMalloc(&dOut2, sizeof(half) * size))
-    CHECK_CUDA(cudaMemcpy(dA, hA, sizeof(half) * size, cudaMemcpyHostToDevice))
-    CHECK_CUDA(cudaMemcpy(dB, hB, sizeof(half) * size, cudaMemcpyHostToDevice))
-    for (int j = 0; j < 4; j++) {
+    CHECK_CUDA(cudaMalloc(&dA, sizeof(half) * batch * m * k))
+    CHECK_CUDA(cudaMalloc(&dB, sizeof(half) * batch * n * k))
+    CHECK_CUDA(cudaMalloc(&dOut, sizeof(half) * out_size))
+    CHECK_CUDA(cudaMalloc(&dOut2, sizeof(half) * out_size))
+    CHECK_CUDA(cudaMemcpy(dA, hA, sizeof(half) * batch * m * k, cudaMemcpyHostToDevice))
+    CHECK_CUDA(cudaMemcpy(dB, hB, sizeof(half) * batch * n * k, cudaMemcpyHostToDevice))
+    for (int j = 0; j < 5; j++) {
         auto tt = new CudaTime();
         tt->initAndStart();
         for (int i = 0; i < batch; i++) {
-            int each = i * row * col;
-            sparse_mma_gemm_device(dA + each, dB + each, row, row, row, true, dOut + each);
+            sparse_mma_gemm_splitK_device(dA + i * m * k, dB + i * n * k, m, k, n, true, dOut + i * m * n);
         }
         printf("spmma time: %fms\n", tt->endAndGetTime());
     }
-    for (int j = 0; j < 4; j++) {
+    for (int j = 0; j < 5; j++) {
         auto tt1 = new CudaTime();
         tt1->initAndStart();
         for (int i = 0; i < batch; i++) {
-            int each = i * row * col;
-            cublas_gemm_device(dA + each, dB + each, row, row, row, dOut + each);
+            cublas_gemm_device(dA + i * m * k, dB + i * n * k, m, k, n, dOut + i * m * n);
         }
         printf("cublas time: %fms\n", tt1->endAndGetTime());
     }
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
         auto tt2 = new CudaTime();
         tt2->initAndStart();
-        sparse_mma_gemm_batches_device(dA, dB, batch, row, row, row, true, dOut);
+        sparse_mma_gemm_batches_device(dA, dB, batch, m, k, n, true, dOut);
         printf("spmma batch time: %fms\n", tt2->endAndGetTime());
     }
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
         auto tt3 = new CudaTime();
         tt3->initAndStart();
-        cublas_gemm_batches_device(dA, dB, batch, row, row, row, false, dOut2);
+        cublas_gemm_batches_device(dA, dB, batch, m, k, n, false, dOut2);
         printf("cublas batch time: %fms\n", tt3->endAndGetTime());
     }
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
         auto tt3 = new CudaTime();
         tt3->initAndStart();
-        cublas_gemm_batches_device_v2(dA, dB, batch, row, row, row, false, dOut2);
+        cublas_gemm_batches_device_v2(dA, dB, batch, m, k, n, false, dOut2);
         printf("cublas batch v2 time: %fms\n", tt3->endAndGetTime());
     }
-    CHECK_CUDA(cudaMemcpy(hOut, dOut, sizeof(half) * size, cudaMemcpyDeviceToHost))
-    CHECK_CUDA(cudaMemcpy(hOut2, dOut2, sizeof(half) * size, cudaMemcpyDeviceToHost))
+    CHECK_CUDA(cudaMemcpy(hOut, dOut, sizeof(half) * out_size, cudaMemcpyDeviceToHost))
+    CHECK_CUDA(cudaMemcpy(hOut2, dOut2, sizeof(half) * out_size, cudaMemcpyDeviceToHost))
     int diff = 0;
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < out_size; i++) {
         if (__half2float(hOut[i]) != __half2float(hOut2[i])) {
             diff++;
             //printf("diff: %f : %f\n", __half2float(hOut[i]), __half2float(hOut2[i]));
         }
     }
     //printf("e.g.: %.2f, %.2f\n", __half2float(hOut[1]), __half2float(hOut2[1]));
-    printf("total: %d, diff: %d\n", size, diff);
+    printf("total: %d, diff: %d\n", out_size, diff);
 }
 
 void test_transpose_batches() {
