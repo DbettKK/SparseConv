@@ -168,7 +168,7 @@ void test_spmma_batches() {
     std::random_device sd; // sd可以产生一个质量很高的随机数
     std::default_random_engine e(sd());
     std::uniform_real_distribution<float> u(0, 5); // 闭区间
-    const int batch = 64, row = 1024, col = 1024;
+    const int batch = 64, row = 256, col = 256;
     int size = batch * row * col;
     half *hA = new half[size];
     half *hB = new half[size];
