@@ -109,13 +109,13 @@ void test_trans() {
 int main() {
     /* todo:
      * 1. 11.2 toolkit mkn参考官网 对比 cublas
-     * 2. cublas_batch 对比 spmma_batch
-     * 3. max_len: 256-512 测试
+     * 2. cublas_batch 对比 spmma_batch -> cublas完胜
+     * 3. max_len: 256-512 测试 -> 依旧不行
      */
     //test_gemm_batches();
     //test_spmma_cublas_efficient();
     //test_transpose_batches();
-    test_trans();
-    //test_spmma_batches();
+    //test_trans();
+    test_spmma_batches();
     return 0;
 }

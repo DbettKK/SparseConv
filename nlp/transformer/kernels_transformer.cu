@@ -368,6 +368,48 @@ void cublas_gemm_batches_device(half *d_A, half *d_B, int batch, int inputM, int
 
 }
 
+void cublas_gemm_batches_device_v2(half *d_A, half *d_B, int batch, int inputM, int inputK, int inputN, bool isSingleBatch, half *output) {
+    // 因为为列存储，为了方便，设置转置
+    cublasHandle_t cublasH = nullptr;
+
+    const int m = inputM;
+    const int n = inputN;
+    const int k = inputK;
+    const int lda = k; // 因为转置了 因此ld代表列数
+    const int ldb = n;
+    const int ldc = m; // c的ld都是m
+
+    const half alpha = 1.0;
+    const half beta = 0.0;
+    int64_t strideA = m * k, strideB = isSingleBatch ? 0 : k * n, strideC = m * n;
+
+    half *d_C = nullptr;
+
+    cublasOperation_t transa = CUBLAS_OP_T;
+    cublasOperation_t transb = CUBLAS_OP_T;
+
+    /* step 1: create cublas handle, bind a stream */
+    CHECK_CUBLAS( cublasCreate(&cublasH) );
+
+    /* step 2: copy data to device */
+    CHECK_CUDA( cudaMalloc(&d_C, sizeof(half) * batch * m * n) );
+
+    /* step 3: compute */
+    CHECK_CUBLAS( cublasHgemmStridedBatched(cublasH, transa, transb, m, n, k, &alpha, d_A, lda, strideA,
+                                            d_B, ldb, strideB, &beta, d_C, ldc, strideC, batch) );
+
+    // transpose
+    dim3 grid(batch / 32 + 1, m, n);
+    transpose_batches<<<grid, 32>>>(d_C, output, batch, m, n);
+
+    /* step 4: copy data to host */
+    //CHECK_CUDA( cudaMemcpyAsync(output, d_C, sizeof(half) * m * n, cudaMemcpyDeviceToDevice, stream));
+
+    /* free resources */
+    CHECK_CUDA( cudaFree(d_C) );
+    CHECK_CUBLAS( cublasDestroy(cublasH) );
+}
+
 void cublas_gemm_batches_scale_device(half *d_A, half *d_B, int batch, int inputM, int inputK, int inputN,
                                 float scale, half *output) {
     const int m = inputM;
@@ -442,6 +484,51 @@ void cublas_gemm_batches_scale_device(half *d_A, half *d_B, int batch, int input
     CHECK_CUDA( cudaFree(dArrC) );
     CHECK_CUBLAS( cublasDestroy(handle) );
 
+}
+
+void cublas_gemm_batches_scale_device_v2(half *d_A, half *d_B, int batch, int inputM, int inputK, int inputN,
+                                         float scale, half *output) {
+    // 因为为列存储，为了方便，设置转置
+    cublasHandle_t cublasH = nullptr;
+
+    const int m = inputM;
+    const int n = inputN;
+    const int k = inputK;
+    const int lda = k; // 因为转置了 因此ld代表列数
+    const int ldb = n;
+    const int ldc = m; // c的ld都是m
+
+    const half alpha = 1.0;
+    const half beta = 0.0;
+    int64_t strideA = m * k, strideB = k * n, strideC = m * n;
+
+    half *d_C = nullptr;
+
+    cublasOperation_t transa = CUBLAS_OP_T;
+    cublasOperation_t transb = CUBLAS_OP_T;
+
+    /* step 1: create cublas handle, bind a stream */
+    CHECK_CUBLAS( cublasCreate(&cublasH) );
+
+    /* step 2: copy data to device */
+    CHECK_CUDA( cudaMalloc(&d_C, sizeof(half) * batch * m * n) );
+
+    /* step 3: compute */
+    CHECK_CUBLAS( cublasHgemmStridedBatched(cublasH, transa, transb, m, n, k, &alpha, d_A, lda, strideA,
+                                            d_B, ldb, strideB, &beta, d_C, ldc, strideC, batch) );
+
+    CHECK_CUBLAS( cublasScalEx(cublasH, batch * m * n, &scale, CUDA_R_32F, d_C, CUDA_R_16F, 1, CUDA_R_32F) )
+
+    // transpose
+    dim3 grid(batch / 32 + 1, m, n);
+    transpose_batches<<<grid, 32>>>(d_C, output, batch, m, n);
+
+    /* step 4: copy data to host */
+    //CHECK_CUDA( cudaMemcpyAsync(output, d_C, sizeof(half) * m * n, cudaMemcpyDeviceToDevice, stream));
+
+    /* free resources */
+    CHECK_CUDA( cudaFree(d_C) );
+    CHECK_CUBLAS( cublasDestroy(cublasH) );
 }
 
 void padCudaMemcpy2D(const half* src, int row, int col, half *dest, int row_padding, int col_padding) {
@@ -1064,12 +1151,12 @@ void cusparse_gemm_blocked_device_test() {
     size_t               bufferSize = 0;
     CHECK_CUSPARSE( cusparseCreate(&handle) )
     // Create sparse matrix A in blocked ELL format
-    CHECK_CUSPARSE( cusparseCreateBlockedEll(
-            &matA,
-            A_num_rows, A_num_cols, A_ell_blocksize,
-            A_ell_cols, dA_columns, dA_values,
-            CUSPARSE_INDEX_32I,
-            CUSPARSE_INDEX_BASE_ZERO, CUDA_R_16F) )
+//    CHECK_CUSPARSE( cusparseCreateBlockedEll(
+//            &matA,
+//            A_num_rows, A_num_cols, A_ell_blocksize,
+//            A_ell_cols, dA_columns, dA_values,
+//            CUSPARSE_INDEX_32I,
+//            CUSPARSE_INDEX_BASE_ZERO, CUDA_R_16F) )
     // Create dense matrix B
     CHECK_CUSPARSE( cusparseCreateDnMat(&matB, A_num_cols, B_num_cols, ldb, dB,
                                         CUDA_R_16F, CUSPARSE_ORDER_COL) )

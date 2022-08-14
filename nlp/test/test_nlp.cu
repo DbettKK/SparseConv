@@ -165,15 +165,18 @@ void test_spmma_cublas_efficient() {
 }
 
 void test_spmma_batches() {
-    const int batch = 64, row = 16, col = 16;
+    std::random_device sd; // sd可以产生一个质量很高的随机数
+    std::default_random_engine e(sd());
+    std::uniform_real_distribution<float> u(0, 5); // 闭区间
+    const int batch = 64, row = 1024, col = 1024;
     int size = batch * row * col;
     half *hA = new half[size];
     half *hB = new half[size];
     for (int i = 0; i < size; i += 2) {
-        hA[i] = 4;
+        hA[i] = u(e);
         hA[i + 1] = 0;
-        hB[i] = 5;
-        hB[i + 1] = 5;
+        hB[i] = u(e);
+        hB[i + 1] = u(e);
         //hA[i] = 2;
         //hB[i] = 3;
     }
@@ -216,16 +219,22 @@ void test_spmma_batches() {
         cublas_gemm_batches_device(dA, dB, batch, row, row, row, false, dOut2);
         printf("cublas batch time: %fms\n", tt3->endAndGetTime());
     }
+    for (int i = 0; i < 4; i++) {
+        auto tt3 = new CudaTime();
+        tt3->initAndStart();
+        cublas_gemm_batches_device_v2(dA, dB, batch, row, row, row, false, dOut2);
+        printf("cublas batch v2 time: %fms\n", tt3->endAndGetTime());
+    }
     CHECK_CUDA(cudaMemcpy(hOut, dOut, sizeof(half) * size, cudaMemcpyDeviceToHost))
     CHECK_CUDA(cudaMemcpy(hOut2, dOut2, sizeof(half) * size, cudaMemcpyDeviceToHost))
     int diff = 0;
     for (int i = 0; i < size; i++) {
         if (__half2float(hOut[i]) != __half2float(hOut2[i])) {
             diff++;
-            printf("diff: %f : %f\n", __half2float(hOut[i]), __half2float(hOut2[i]));
+            //printf("diff: %f : %f\n", __half2float(hOut[i]), __half2float(hOut2[i]));
         }
     }
-    printf("e.g.: %.2f, %.2f\n", __half2float(hOut[1]), __half2float(hOut2[1]));
+    //printf("e.g.: %.2f, %.2f\n", __half2float(hOut[1]), __half2float(hOut2[1]));
     printf("total: %d, diff: %d\n", size, diff);
 }
 

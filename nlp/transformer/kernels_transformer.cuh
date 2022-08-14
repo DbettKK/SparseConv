@@ -50,7 +50,11 @@ void cublas_gemm_device_scale(const half *d_A, const half *d_B, int inputM, int 
 
 void cublas_gemm_batches_device(half *d_A, half *d_B, int batch, int inputM, int inputK, int inputN, bool isSingleBatch, half *output);
 
+void cublas_gemm_batches_device_v2(half *d_A, half *d_B, int batch, int inputM, int inputK, int inputN, bool isSingleBatch, half *output);
+
 void cublas_gemm_batches_scale_device(half *d_A, half *d_B, int batch, int inputM, int inputK, int inputN, float scale, half *output);
+
+void cublas_gemm_batches_scale_device_v2(half *d_A, half *d_B, int batch, int inputM, int inputK, int inputN, float scale, half *output);
 
 void padCudaMemcpy2D(const half* src, int row, int col, half *dest, int row_padding, int col_padding);
 
