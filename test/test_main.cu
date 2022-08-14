@@ -368,7 +368,7 @@ void test_blas() {
         for (int j = 0; j < 16; j++) {
             sparse_mma_gemm_device(dA + j * 256 * 256, dB + j * 256 * 256, 256, 256, 256, false, dOut + j * 256 * 256);
         }
-        printf("no batch spmma time: %fms\n", tt0->endAndGetTime());
+        printf("no batch interface time: %fms\n", tt0->endAndGetTime());
     }
     for (int i = 0; i < 1; i++) {
         auto tt1 = new CudaTime();

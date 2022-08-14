@@ -171,7 +171,7 @@ spmma_matmul(const half *inputA, const half *inputB, int inputM, int inputK, int
     CHECK_CUDA( cudaFree(d_valid) )
 
     float all_time = time_all->endAndGetTime();
-    //printf("spmma all took %fms\n", all_time);
+    //printf("interface all took %fms\n", all_time);
 
     ofstream out("../data/spmma_time.txt", ios::app);
     out << "spmma_matmul: " << all_time << "ms\n";

@@ -136,11 +136,11 @@ def get_data():
 if __name__ == '__main__':
     # RTX3070-Windows
     # topi: 0.01ms
-    # spmma: gemm-0.02ms / total-0.3ms
+    # interface: gemm-0.02ms / total-0.3ms
     # The shape of (batch, in_channel, num_filter) must be multiple of (16, 16, 16) or (32, 16, 8) or (8, 16, 32) for now
     # A100
     # topi: 0.005306 ms
-    # spmma:
+    # interface:
 
     datas, filters, paddings, strides, outs = get_data()
 

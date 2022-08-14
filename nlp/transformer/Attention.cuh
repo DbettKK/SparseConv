@@ -5,7 +5,7 @@
 #ifndef SPARSECONV_ATTENTION_CUH
 #define SPARSECONV_ATTENTION_CUH
 
-#include "kernels_transformer.cuh"
+#include "interface/kernels_transformer.cuh"
 #include "MatrixHalf.cuh"
 
 class Attention {

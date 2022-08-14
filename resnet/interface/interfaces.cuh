@@ -9,7 +9,7 @@
 #include <cudnn.h>
 
 #include "../interface/resnet_kernel.cuh"
-#include "../../nlp/transformer/kernels_transformer.cuh"
+#include "../../nlp/transformer/interface/kernels_transformer.cuh"
 
 __global__ void ReLU(half *in, half *out, int size);
 

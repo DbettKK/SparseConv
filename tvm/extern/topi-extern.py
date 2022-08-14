@@ -40,7 +40,7 @@ def get_total_size(item):
 
 @tvm.register_func("tvm.contrib.my_topi_conv2d")
 def spmma_conv(Image, Kernel, ConvOut):
-    libc = c.cdll.LoadLibrary('../../spmma/tmp.so')
+    libc = c.cdll.LoadLibrary('../../interface/tmp.so')
 
     data_size = Image.shape
     kernel_size = Kernel.shape

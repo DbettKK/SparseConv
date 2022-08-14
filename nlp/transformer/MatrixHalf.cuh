@@ -9,7 +9,10 @@
 #include <string>
 #include <iostream>
 #include <fstream>
-#include "kernels_transformer.cuh"
+#include "interface/kernels_transformer.cuh"
+#include "interface/spmma_interface.cuh"
+#include "interface/cublas_interface.cuh"
+#include "interface/cusparse_interface.cuh"
 
 
 class MatrixHalf {

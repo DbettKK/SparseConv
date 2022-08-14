@@ -29,7 +29,7 @@ void test_conv2d() {
         auto t2 = new CudaTime();
         t1->initAndStart();
         conv2d_device_spmma(d_f, d_k, batch, in_c, out_c, f_w, f_h, k_w, k_h, 1, 0, d_out);
-        printf("spmma time: %fms\t", t1->endAndGetTime());
+        printf("interface time: %fms\t", t1->endAndGetTime());
         t2->initAndStart();
         conv2d_device_cudnn(d_f, d_k, batch, in_c, out_c, f_w, f_h, k_w, k_h, 1, 0, d_out);
         printf("cudnn time: %fms\n", t2->endAndGetTime());

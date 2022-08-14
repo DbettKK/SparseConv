@@ -88,13 +88,13 @@ void test_spmma_cublas() {
         if (__half2float(o1[i]) != __half2float(o2[i])) diff++;
         //printf("diff: %.2f : %.2f\n", __half2float(o1[i]), __half2float(o2[i]));
     }
-    printf("cublas, spmma: total: %d, diff: %d\n", m * n, diff);
+    printf("cublas, interface: total: %d, diff: %d\n", m * n, diff);
     diff = 0;
     for (int i = 0; i < m * n; i++) {
         if (__half2float(hC[i]) != __half2float(o2[i])) diff++;
         //printf("diff: %.2f : %.2f\n", __half2float(o1[i]), __half2float(o2[i]));
     }
-    printf("spmma, cpu: total: %d, diff: %d\n", m * n, diff);
+    printf("interface, cpu: total: %d, diff: %d\n", m * n, diff);
     diff = 0;
     for (int i = 0; i < m * n; i++) {
         if (__half2float(o1[i]) != __half2float(hC[i])) diff++;
@@ -115,7 +115,7 @@ void test_spmma_cublas() {
         }
         printf("\n");
     }
-    printf("spmma:\n");
+    printf("interface:\n");
     for (int i = 0; i < m; i++) {
         for (int j = 0; j < n; j++) {
             printf("%.2f ", __half2float(o2[i]));
@@ -153,7 +153,7 @@ void test_spmma_cublas_efficient() {
         auto t1 = new CudaTime();
         t1->initAndStart();
         sparse_mma_gemm_device(dA, dB, M, K, N, true, dOut1);
-        printf("spmma time: %fms\n", t1->endAndGetTime());
+        printf("interface time: %fms\n", t1->endAndGetTime());
     }
     for (int i = 0; i < 10; i++) {
         auto t2 = new CudaTime();
@@ -168,7 +168,7 @@ void test_spmma_batches() {
     std::random_device sd; // sd可以产生一个质量很高的随机数
     std::default_random_engine e(sd());
     std::uniform_real_distribution<float> u(0, 5); // 闭区间
-    const int batch = 64, m = 256, k = 256, n = 64;
+    const int batch = 1, m = 256, k = 256, n = 64;
     int out_size = batch * m * n;
     half *hA = new half[batch * m * k];
     half *hB = new half[batch * n * k];
@@ -192,9 +192,9 @@ void test_spmma_batches() {
         auto tt = new CudaTime();
         tt->initAndStart();
         for (int i = 0; i < batch; i++) {
-            sparse_mma_gemm_splitK_device(dA + i * m * k, dB + i * n * k, m, k, n, true, dOut + i * m * n);
+            sparse_mma_gemm_device(dA + i * m * k, dB + i * n * k, m, k, n, true, dOut + i * m * n);
         }
-        printf("spmma time: %fms\n", tt->endAndGetTime());
+        printf("interface time: %fms\n", tt->endAndGetTime());
     }
     for (int j = 0; j < 5; j++) {
         auto tt1 = new CudaTime();
@@ -208,7 +208,7 @@ void test_spmma_batches() {
         auto tt2 = new CudaTime();
         tt2->initAndStart();
         sparse_mma_gemm_batches_device(dA, dB, batch, m, k, n, true, dOut);
-        printf("spmma batch time: %fms\n", tt2->endAndGetTime());
+        printf("interface batch time: %fms\n", tt2->endAndGetTime());
     }
     for (int i = 0; i < 5; i++) {
         auto tt3 = new CudaTime();

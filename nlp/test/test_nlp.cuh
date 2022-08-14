@@ -5,7 +5,10 @@
 #ifndef SPARSECONV_TEST_NLP_CUH
 #define SPARSECONV_TEST_NLP_CUH
 
-#include "../transformer/kernels_transformer.cuh"
+#include "../transformer/interface/kernels_transformer.cuh"
+#include "../transformer/interface/spmma_interface.cuh"
+#include "../transformer/interface/cublas_interface.cuh"
+#include "../transformer/interface/cusparse_interface.cuh"
 #include <random>
 
 void test_gemm_batches();

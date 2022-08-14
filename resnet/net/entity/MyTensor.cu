@@ -189,7 +189,7 @@ MyTensor::conv2d(int conv_num, int out_channel, int kernel_w, int kernel_h, int 
      //                   kernel->height, stride, padding, out->getTensor());
     conv2d_device_spmma(this->tensor, kernel->tensor, batch, channel, kernel->batch, width, height, kernel->width,
                         kernel->height, stride, padding, out->getTensor());
-    conv_t->endAndExportTimeToFile("../../data/time/resnet50_spmma_time.txt", "spmma conv" + std::to_string(conv_num) + ": ");
+    conv_t->endAndExportTimeToFile("../../data/time/resnet50_spmma_time.txt", "interface conv" + std::to_string(conv_num) + ": ");
     //conv_t->endAndExportTimeToFile("../../data/time/resnet50_cudnn_time.txt", "cudnn conv" + std::to_string(conv_num) + ": ");
     kernel->free_tensor();
 }
