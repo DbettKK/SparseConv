@@ -6,6 +6,7 @@
 #include "../spmma/utils/CudaTime.cuh"
 #include "transformer/Transformer.cuh"
 #include "test/test_nlp.cuh"
+#include "test/test_spmma.cuh"
 #include <random>
 
 float generate_random() {
@@ -116,6 +117,6 @@ int main() {
     //test_spmma_cublas_efficient();
     //test_transpose_batches();
     //test_trans();
-    test_spmma_batches();
+    test_pad_time();
     return 0;
 }
