@@ -34,9 +34,9 @@ void test_pad_time() {
         auto t = new CudaTime();
         t->initAndStart();
         for (int j = 0; j < batch; j++) {
-            sparse_mma_gemm_transpose_device(dA + j * m * k, dB + j * k * n, m, k, n, true, dOut2 + j * m * n);
+            cublas_gemm_device(dA + j * m * k, dB + j * k * n, m, k, n, dOut2 + j * m * n);
         }
-        printf("spmma pad transpose time: %fms\n", t->endAndGetTime());
+        printf("cublas time: %fms\n", t->endAndGetTime());
     }
     for (int i = 0; i < 5; i++) {
         auto t = new CudaTime();
@@ -50,7 +50,18 @@ void test_pad_time() {
         sparse_mma_gemm_batches_device(dA, dB, batch, m, k, n, true, dOut2);
         printf("spmma batch pad time: %fms\n", t->endAndGetTime());
     }
-
+    for (int i = 0; i < 5; i++) {
+        auto t = new CudaTime();
+        t->initAndStart();
+        cublas_gemm_batches_device(dA, dB, batch, m, k, n, false, dOut2);
+        printf("cublas batch time: %fms\n", t->endAndGetTime());
+    }
+    for (int i = 0; i < 5; i++) {
+        auto t = new CudaTime();
+        t->initAndStart();
+        cublas_gemm_batches_device_v2(dA, dB, batch, m, k, n, false, dOut2);
+        printf("cublas batch v2 time: %fms\n", t->endAndGetTime());
+    }
     test->matC_diff(dOut, dOut2);
 
 }

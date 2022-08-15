@@ -8,6 +8,7 @@
 #include <random>
 #include "Test.cuh"
 #include "../transformer/interface/spmma_interface.cuh"
+#include "../transformer/interface/cublas_interface.cuh"
 
 void test_pad_time();
 
