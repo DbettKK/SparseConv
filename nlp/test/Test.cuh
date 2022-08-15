@@ -23,13 +23,15 @@ public:
     float randf();
     float randf(int bound);
 
-    void generate_sparse_A(half *matA);
+    void generate_sparse_A(half **matA);
 
-    void generate_dense_B(half *matB);
+    void generate_dense_B(half **matB);
 
-    void generate_zero_C(half *matC) const;
+    void generate_zero_C(half **matC) const;
 
     void matC_diff(half *matC1, half *matC2) const;
+
+    void print_matC(half *matC) const;
 };
 
 
