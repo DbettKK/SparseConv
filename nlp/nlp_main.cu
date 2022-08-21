@@ -92,17 +92,17 @@ void test_gemm() {
 }
 
 void test_trans() {
-    auto t = new Transformer(2, 256, 2, 512, 600);
-    int *en_in = new int[2 * 256];
-    int *de_in = new int[2 * 256];
-    for (int i = 0; i < 2 * 256; i++) en_in[i] = i / 2 + 1;
-    for (int i = 0; i < 2 * 256; i++) de_in[i] = i / 2 + 1;
-    auto out = new MatrixHalf(2, 2, 600, true);
-    for (int i = 0; i < 2; i++) {
+    auto t = new Transformer(2, 512, 512, 512, 37000);
+    int *en_in = new int[2 * 512];
+    int *de_in = new int[2 * 512];
+    for (int i = 0; i < 2 * 512; i++) en_in[i] = i / 2 + 1;
+    for (int i = 0; i < 2 * 512; i++) de_in[i] = i / 2 + 1;
+    auto out = new MatrixHalf(2, 512, 37000, true);
+    for (int i = 0; i < 12; i++) {
         auto trans_t = new CudaTime();
         trans_t->initAndStart();
         t->forward(en_in, de_in, out);
-        out->print("out", true);
+        //out->print("out", true);
         printf("trans time: %fms\n", trans_t->endAndGetTime());
     }
 }
@@ -117,6 +117,6 @@ int main() {
     //test_spmma_cublas_efficient();
     //test_transpose_batches();
     //test_trans();
-    test_pad_time();
+    test_trans();
     return 0;
 }

@@ -130,6 +130,9 @@ class MultiHeadedAttention(nn.Module):
         # dropout
         self.dropout = nn.Dropout(p=dropout)
 
+        # LayerNorm
+        self.ln = nn.LayerNorm(embedding_dim, eps=1e-5)
+
     def forward(self, query, key, value, mask=None):
         """前向逻辑函数 Q K V原始输入以及 mask矩阵"""
 
@@ -159,7 +162,11 @@ class MultiHeadedAttention(nn.Module):
         x = x.transpose(1, 2).contiguous().view(batch_size, -1, self.head * self.d_k)
 
         # concat 后的 tensor 再经过一个线性层 W0
-        return self.liners[-1](x)
+        # 然后残差
+        x = x + self.dropout(self.liners[-1](x))
+
+        # layerNorm
+        return self.ln(x)
 
 
 class FeedForward(nn.Module):
@@ -172,12 +179,14 @@ class FeedForward(nn.Module):
         self.w2 = nn.Linear(d_ff, d_model)
         # 实例化dropout
         self.dropout = nn.Dropout(p=dropout)
+        # 实例化LayerNorm
+        self.ln = nn.LayerNorm(d_model, eps=1e-5)
 
     def forward(self, x):
         """ x为 Attention 层输出 """
         # 首先和 W1 进行矩阵乘，然后通过 ReLU 激活函数 ReLU(x)=max(0, x)
         # 然后进行dropout，和 W2 进行矩阵乘， 得到结果
-        return self.w2(self.dropout(F.relu(self.w1(x))))
+        return self.ln(x + self.w2(self.dropout(F.relu(self.w1(x)))))
 
 
 class LayerNorm(nn.Module):
@@ -243,7 +252,7 @@ class EncoderLayer(nn.Module):
         self.feed_forward = feed_forward
 
         # 编码器有两个子层连接结构 因此通过clones函数进行克隆
-        self.sublayer = clones(SublayerConnection(size, dropout), 2)
+        # self.sublayer = clones(SublayerConnection(size, dropout), 2)
 
         # 传入size
         self.size = size
@@ -255,8 +264,11 @@ class EncoderLayer(nn.Module):
         :return: 编码器输出
         """
         # 首先是多头注意力层 然后是mlp层
-        x = self.sublayer[0](x, lambda qkv: self.self_attn(qkv, qkv, qkv, mask))
-        return self.sublayer[1](x, self.feed_forward)
+        # x = self.sublayer[0](x, lambda qkv: self.self_attn(qkv, qkv, qkv, mask))
+        # return self.sublayer[1](x, self.feed_forward)
+        x = self.self_attn(x, x, x, mask)
+        x = self.feed_forward(x)
+        return x
 
 
 class Encoder(nn.Module):

@@ -139,8 +139,8 @@ void sparse_mma_gemm_noPad_device(half *inputA, half *inputB, int inputM, int in
     int *d_valid;
     int *is_valid = (int *)malloc(sizeof(int));
 
-    CHECK_CUDA(cudaMalloc((void **) &dC, C_size))
-    CHECK_CUDA(cudaMalloc((void **) &d_valid, sizeof(d_valid)))
+    CHECK_CUDA(cudaMalloc(&dC, C_size))
+    CHECK_CUDA(cudaMalloc(&d_valid, sizeof(d_valid)))
     CHECK_CUDA(cudaMemset(dC, 0, C_size))
     dD = dC;
 
@@ -156,7 +156,6 @@ void sparse_mma_gemm_noPad_device(half *inputA, half *inputB, int inputM, int in
     unsigned alignment = 16;
 
     //--------------------------------------------------------------------------
-
     cusparseLtHandle_t handle;
     cusparseLtMatDescriptor_t matA, matB, matC;
     cusparseLtMatmulDescriptor_t matmul;
@@ -197,7 +196,7 @@ void sparse_mma_gemm_noPad_device(half *inputA, half *inputB, int inputM, int in
     }
     // 符合条件 不用判断 直接compress即可
     CHECK_CUSPARSE(cusparseLtSpMMACompressedSize(&handle, &plan, &compressed_size))
-    CHECK_CUDA(cudaMalloc((void **) &dA_compressed, compressed_size))
+    CHECK_CUDA(cudaMalloc(&dA_compressed, compressed_size))
     CHECK_CUSPARSE(cusparseLtSpMMACompress(&handle, &plan, inputA, dA_compressed, stream))
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -207,8 +206,7 @@ void sparse_mma_gemm_noPad_device(half *inputA, half *inputB, int inputM, int in
     cudaStream_t* streams     = nullptr;
     CHECK_CUDA(cudaMalloc(&d_workspace, workspace_size))
 
-    CHECK_CUSPARSE(cusparseLtMatmul(&handle, &plan, &alpha, dA_compressed, inputB, &beta, dC, outputD, d_workspace, streams,
-                                    num_streams))
+    CHECK_CUSPARSE(cusparseLtMatmul(&handle, &plan, &alpha, dA_compressed, inputB, &beta, dC, outputD, d_workspace, streams, num_streams))
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
