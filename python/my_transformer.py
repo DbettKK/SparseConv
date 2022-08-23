@@ -304,7 +304,7 @@ class DecoderLayer(nn.Module):
         self.src_attn = src_attn
         self.feed_forward = feed_forward
         # 三个子层
-        self.sublayer = clones(SublayerConnection(size, dropout), 3)
+        # self.sublayer = clones(SublayerConnection(size, dropout), 3)
 
     def forward(self, x, memory, source_mask, target_mask):
         """
@@ -315,15 +315,15 @@ class DecoderLayer(nn.Module):
         """
         # 多头自注意力层
         # 对目标数据进行遮掩 保证解码器能看到的信息不包括未来的信息
-        x = self.sublayer[0](x, lambda qkv: self.self_attn(qkv, qkv, qkv, target_mask))
+        x = self.self_attn(x, x, x, target_mask)
 
         # 多头注意力层
         # query为解码器输入 k v为编码器的输出
         # 这里的遮掩是对源数据进行遮掩 并不是为了抑制解码器的视野 只是为了遮蔽无意义的字符如P 编码器中的mask也是这个用途
-        x = self.sublayer[1](x, lambda query: self.src_attn(query, memory, memory, source_mask))
+        x = self.src_attn(x, memory, memory, source_mask)
 
         # mlp层
-        return self.sublayer[2](x, self.feed_forward)
+        return self.feed_forward(x)
 
 
 class Decoder(nn.Module):
@@ -359,6 +359,7 @@ class Generator(nn.Module):
         """
         super(Generator, self).__init__()
         # 线性层
+        # vocab_size: 37k base模型
         self.liner = nn.Linear(d_model, vocab_size)
 
     def forward(self, x):

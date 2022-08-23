@@ -3,10 +3,7 @@
 //
 
 #include "./transformer/Attention.cuh"
-#include "../spmma/utils/CudaTime.cuh"
 #include "transformer/Transformer.cuh"
-#include "test/test_nlp.cuh"
-#include "test/test_spmma.cuh"
 #include <random>
 
 float generate_random() {
