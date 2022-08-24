@@ -89,12 +89,12 @@ void test_gemm() {
 }
 
 void test_trans() {
-    auto t = new Transformer(2, 512, 512, 512, 37000);
-    int *en_in = new int[2 * 512];
-    int *de_in = new int[2 * 512];
-    for (int i = 0; i < 2 * 512; i++) en_in[i] = i / 2 + 1;
-    for (int i = 0; i < 2 * 512; i++) de_in[i] = i / 2 + 1;
-    auto out = new MatrixHalf(2, 512, 37000, true);
+    auto t = new Transformer(16, 512, 512, 512, 37000);
+    int *en_in = new int[16 * 512];
+    int *de_in = new int[16 * 512];
+    for (int i = 0; i < 16 * 512; i++) en_in[i] = i / 2 + 1;
+    for (int i = 0; i < 16 * 512; i++) de_in[i] = i / 2 + 1;
+    auto out = new MatrixHalf(16, 512, 37000, true);
     for (int i = 0; i < 12; i++) {
         auto trans_t = new CudaTime();
         trans_t->initAndStart();

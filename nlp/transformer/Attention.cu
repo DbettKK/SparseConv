@@ -126,7 +126,7 @@ void Attention::attn_batch(half *Q, half *K, half *V, half *out, int batch, int 
     transpose_batches<<<grid, 32>>>(K, transK, batch * heads, en_max_len, embedding / heads);
 
     // 2. QK^T / sqrt(d_k)
-    cublas_gemm_batches_scale_device(Q, transK, batch * heads, de_max_len, embedding / heads, en_max_len, 1.0f / (float)sqrt(embedding), attn_matrix);
+    cublas_gemm_batches_scale_device_v2(Q, transK, batch * heads, de_max_len, embedding / heads, en_max_len, 1.0f / (float)sqrt(embedding), attn_matrix);
 
     // 3. mask
     if (mask != nullptr) {
