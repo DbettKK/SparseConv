@@ -116,7 +116,7 @@ void cublas_gemm_batches_device(half *d_A, half *d_B, int batch, int inputM, int
 
     /* step 3: compute */
     half **dArrA, **dArrB, **dArrC;
-    half *arrA[64], *arrB[64], *arrC[64];
+    half *arrA[256], *arrB[256], *arrC[256];
     if (isSingleBatch) {
         for (int i = 0; i < batch; i++) {
             half *tmpB;

@@ -5,7 +5,7 @@
 #include "test_spmma.cuh"
 
 void test_pad_time() {
-    int batch = 128, m = 512, k = 512, n = 64;
+    int batch = 16, m = 512, k = 512, n = 64;
     auto test = new Test(batch, m, k, n);
 
     half *dA, *dB, *dOut, *dOut2;
