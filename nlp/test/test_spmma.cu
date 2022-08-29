@@ -5,7 +5,7 @@
 #include "test_spmma.cuh"
 
 void test_pad_time() {
-    int batch = 16, m = 512, k = 512, n = 64;
+    int batch = 2, m = 512, k = 512, n = 64;
     auto test = new Test(batch, m, k, n);
 
     half *dA, *dB, *dOut, *dOut2;
@@ -64,4 +64,19 @@ void test_pad_time() {
     }
     test->matC_diff(dOut, dOut2);
 
+}
+
+void test_cusparse() {
+    int batch = 2, m = 512, k = 512, n = 64;
+    auto test = new Test(batch, m, k, n);
+
+    half *dA, *dB, *dOut, *dOut2;
+    test->generate_sparse_A(&dA);
+    test->generate_dense_B(&dB);
+    test->generate_zero_C(&dOut);
+    test->generate_zero_C(&dOut2);
+
+    sparse_mma_gemm_batches_device(dA, dB, 2, m, k, n, true, dOut);
+    cusparse_gemm_coo_batched_device(dA, dB, 2, m, k, n, dOut2);
+    test->matC_diff(dOut, dOut2);
 }

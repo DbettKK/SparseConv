@@ -70,6 +70,71 @@ void cusparse_gemm_csr_device(half *sp_A, half *d_B, int m, int k, int n, half *
     CHECK_CUDA( cudaFree(dA_csr_values) )
 }
 
+void cusparse_gemm_coo_batched_device(half *sp_A, half *d_B, int batch, int m, int k, int n, half *output) {
+    float alpha = 1.0f, beta = 0.0f;
+
+    cusparseHandle_t handle = nullptr;
+    CHECK_CUSPARSE(cusparseCreate(&handle) )
+
+    int ldA = k, ldB = n, ldC = n;
+    half *dA_coo_values, *dC;
+    int *dA_coo_rows, *dA_coo_columns;
+
+    CHECK_CUDA( cudaMalloc((void **)&dC, sizeof(half) * m * n) )
+
+    cusparseDnMatDescr_t matA, matB, matC;
+    CHECK_CUSPARSE( cusparseCreateDnMat(&matA, m, k, ldA, sp_A, CUDA_R_16F, CUSPARSE_ORDER_ROW) )
+    CHECK_CUSPARSE( cusparseCreateDnMat(&matB, k, n, ldB, d_B, CUDA_R_16F, CUSPARSE_ORDER_ROW) )
+    CHECK_CUSPARSE( cusparseCreateDnMat(&matC, m, n, ldC, dC, CUDA_R_16F, CUSPARSE_ORDER_ROW) )
+
+    cusparseSpMatDescr_t matA_cmpr;
+    // 此时相关参数都未设置
+    CHECK_CUSPARSE( cusparseCreateCoo(&matA_cmpr, m, k, 0, nullptr,
+                                      nullptr, nullptr, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_16F) )
+
+    void* dBuffer = nullptr;
+    size_t bufferSize = 0;
+    CHECK_CUSPARSE( cusparseDenseToSparse_bufferSize(handle, matA, matA_cmpr, CUSPARSE_DENSETOSPARSE_ALG_DEFAULT, &bufferSize) )
+    CHECK_CUDA( cudaMalloc(&dBuffer, bufferSize) )
+
+    CHECK_CUSPARSE( cusparseDenseToSparse_analysis(handle, matA, matA_cmpr, CUSPARSE_DENSETOSPARSE_ALG_DEFAULT, dBuffer) )
+    // analysis后可以获取相应指针
+    int64_t num_rows_tmp, num_cols_tmp, nnz;
+    CHECK_CUSPARSE( cusparseSpMatGetSize(matA_cmpr, &num_rows_tmp, &num_cols_tmp, &nnz) )
+
+    // allocate COO column indices and values
+    CHECK_CUDA( cudaMalloc((void**) &dA_coo_columns, nnz * sizeof(int)) )
+    CHECK_CUDA( cudaMalloc((void**) &dA_coo_rows, nnz * sizeof(int)) )
+    CHECK_CUDA( cudaMalloc((void**) &dA_coo_values,  nnz * sizeof(half)) )
+    // reset offsets, column indices, and values pointers
+    CHECK_CUSPARSE( cusparseCooSetPointers(matA_cmpr, dA_coo_rows, dA_coo_columns, dA_coo_values) )
+
+    CHECK_CUSPARSE( cusparseDenseToSparse_convert(handle, matA, matA_cmpr, CUSPARSE_DENSETOSPARSE_ALG_DEFAULT, dBuffer) )
+
+    // calculate
+    // 当 A/B/C 都为 CUDA_R_16F，computeType 需要为 CUDA_R_32F
+    CHECK_CUSPARSE( cusparseSpMM_bufferSize(handle, CUSPARSE_OPERATION_NON_TRANSPOSE, CUSPARSE_OPERATION_NON_TRANSPOSE,
+                                            &alpha, matA_cmpr, matB, &beta, matC, CUDA_R_32F, CUSPARSE_SPMM_ALG_DEFAULT, &bufferSize) )
+    CHECK_CUDA( cudaMalloc(&dBuffer, bufferSize) )
+
+    CHECK_CUSPARSE( cusparseSpMM(handle, CUSPARSE_OPERATION_NON_TRANSPOSE, CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha,
+                                 matA_cmpr, matB, &beta, matC, CUDA_R_32F, CUSPARSE_SPMM_ALG_DEFAULT, dBuffer) )
+
+    CHECK_CUDA( cudaMemcpy(output, dC, sizeof(half) * m * n, cudaMemcpyDeviceToHost) )
+
+    // destroy matrix/vector descriptors
+    CHECK_CUSPARSE( cusparseDestroySpMat(matA_cmpr) )
+    CHECK_CUSPARSE( cusparseDestroyDnMat(matA) )
+    CHECK_CUSPARSE( cusparseDestroyDnMat(matB) )
+    CHECK_CUSPARSE( cusparseDestroyDnMat(matC) )
+    CHECK_CUSPARSE( cusparseDestroy(handle) )
+
+    CHECK_CUDA( cudaFree(dBuffer) )
+    CHECK_CUDA( cudaFree(dA_coo_rows) )
+    CHECK_CUDA( cudaFree(dA_coo_columns) )
+    CHECK_CUDA( cudaFree(dA_coo_values) )
+}
+
 void cusparse_gemm_blocked_device_test() {
     int   A_num_rows      = 4;
     int   A_num_cols      = 4;

@@ -90,13 +90,13 @@ void test_gemm() {
 }
 
 void test_trans() {
-    auto t = new Transformer(16, 512, 512, 512, 37000);
-    int *en_in = new int[16 * 512];
-    int *de_in = new int[16 * 512];
-    for (int i = 0; i < 16 * 512; i++) en_in[i] = i / 2 + 1;
-    for (int i = 0; i < 16 * 512; i++) de_in[i] = i / 2 + 1;
-    auto out = new MatrixHalf(16, 512, 37000, true);
-    for (int i = 0; i < 12; i++) {
+    auto t = new Transformer(2, 512, 512, 512, 37000);
+    int *en_in = new int[2 * 512];
+    int *de_in = new int[2 * 512];
+    for (int i = 0; i < 2 * 512; i++) en_in[i] = i / 2 + 1;
+    for (int i = 0; i < 2 * 512; i++) de_in[i] = i / 2 + 1;
+    auto out = new MatrixHalf(2, 512, 37000, true);
+    for (int i = 0; i < 1; i++) {
         auto trans_t = new CudaTime();
         trans_t->initAndStart();
         t->forward(en_in, de_in, out);
@@ -106,15 +106,10 @@ void test_trans() {
 }
 
 int main() {
-    /* todo:
-     * 1. 11.2 toolkit mkn参考官网 对比 cublas
-     * 2. cublas_batch 对比 spmma_batch -> cublas完胜
-     * 3. max_len: 256-512 测试 -> 依旧不行
-     */
     //test_gemm_batches();
     //test_spmma_cublas_efficient();
     //test_transpose_batches();
     //test_trans();
-    test_trans();
+    test_pad_time();
     return 0;
 }

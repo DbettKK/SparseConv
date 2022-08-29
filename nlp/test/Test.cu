@@ -67,6 +67,7 @@ void Test::matC_diff(half *matC1, half *matC2) const {
     for (int i = 0; i < matC_size(); i++) {
         if (__half2float(hC1[i]) != __half2float(hC2[i])) {
             diff++;
+            //printf("diff: %f : %f\n", __half2float(hC1[i]), __half2float(hC2[i]));
         }
     }
     printf("total: %d, diff: %d\n", matC_size(), diff);

@@ -41,6 +41,7 @@ void CudaTime::end() {
 
 float CudaTime::getTime() {
     float totalTime;
+    //cudaEventQuery(endTime);
     CHECK_CUDA_NO_RET( cudaEventSynchronize(endTime) )
     CHECK_CUDA_NO_RET( cudaEventElapsedTime(&totalTime, startTime, endTime) )
     return totalTime;
@@ -64,17 +65,12 @@ float CudaTime::endAndGetTime() {
 }
 
 void CudaTime::endAndPrintTime(const std::string &msg) {
-    end();
-    float totalTime = getTime();
-    destroy();
-    printf("%s %fms\n", msg.c_str(), totalTime);
+    printf("%s %fms\n", msg.c_str(), endAndGetTime());
 }
 
 void CudaTime::endAndExportTimeToFile(const std::string path, const std::string prefix_msg) {
-    end();
-    float totalTime = getTime();
-    destroy();
+    float time = endAndGetTime();
     std::ofstream out(path, std::ios::app);
-    out << prefix_msg << totalTime << "ms\n";
+    out << prefix_msg << time << "ms\n";
     out.close();
 }

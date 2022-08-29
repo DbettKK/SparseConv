@@ -44,10 +44,10 @@ void Attention::forward(MatrixHalf *inputQ, MatrixHalf *inputK, MatrixHalf *inpu
     V->free_matrix();
     // 3. 多头注意力
     auto concat = new MatrixHalf(inputQ->getBatch(), inputQ->getRow(), inputQ->getCol(), true);
-//    attn(outQ->getMatrix(), outK->getMatrix(), outV->getMatrix(), concat->getMatrix(),
-//         inputQ->getBatch(), inputK->getRow(), inputQ->getRow(), inputQ->getCol(), mask);
-    attn_batch(outQ->getMatrix(), outK->getMatrix(), outV->getMatrix(), concat->getMatrix(),
-         inputQ->getBatch(), inputK->getRow(), inputQ->getRow(), mask);
+    attn(outQ->getMatrix(), outK->getMatrix(), outV->getMatrix(), concat->getMatrix(),
+         inputQ->getBatch(), inputK->getRow(), inputQ->getRow(), inputQ->getCol(), mask);
+//    attn_batch(outQ->getMatrix(), outK->getMatrix(), outV->getMatrix(), concat->getMatrix(),
+//         inputQ->getBatch(), inputK->getRow(), inputQ->getRow(), mask);
     // 4. 再一个线性层 运算结果concat并和 W0 运算得到输出
     auto attention_out = new MatrixHalf(inputQ->getBatch(), inputQ->getRow(), inputQ->getCol(), true);
     auto W0 = new MatrixHalf(1, embedding, embedding, true, "../../data/transformer/w0_" + path_suffix);
@@ -97,8 +97,11 @@ void Attention::attn(half *Q, half *K, half *V, half *out, int batch, int en_max
             // 5. 和V乘
             //half *tmp;
             //CHECK_CUDA(cudaMalloc(&tmp, sizeof(half) * de_max_len * ebd / heads))
+            auto tt = new CudaTime();
+            tt->initAndStart();
             sparse_mma_gemm_device(softmax_out, V + each_block * en_max_len, de_max_len, en_max_len,
                                    ebd / heads, true, out + each_block * de_max_len);
+            tt->endAndExportTimeToFile("../../data/trans_time.txt", "spmma: ");
             //cublas_gemm_device(softmax_out, V + each_block * en_max_len, de_max_len, en_max_len, ebd / heads, out + each_block * de_max_len);
             //cusparse_gemm_csr_device(softmax_out, V + each_block * en_max_len, de_max_len, en_max_len, ebd / heads, out + each_block * de_max_len);
             //MatrixHalf::cmp(tmp, out + each_block * de_max_len, de_max_len * ebd / heads);
