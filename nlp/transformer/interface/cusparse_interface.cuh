@@ -9,7 +9,7 @@
 
 void cusparse_gemm_csr_device(half *sp_A, half *d_B, int m, int k, int n, half *output);
 
-void cusparse_gemm_coo_batched_device(half *sp_A, half *d_B, int batch, int m, int k, int n, half *output);
+void cusparse_gemm_coo_device(half *sp_A, half *d_B, int m, int k, int n, half *output);
 
 void cusparse_gemm_blocked_device_test();
 
