@@ -379,7 +379,7 @@ void test_blas() {
 
 }
 
-int main() {
+int main2() {
     test_blas();
     return 0;
     int size = sizeof(float);

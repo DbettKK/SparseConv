@@ -127,13 +127,14 @@ void MyTensor::cmp_half(half *item1, half *item2, int batch, int channel, int wi
                 for (int k = 0; k < width; k++) {
                     for (int v = 0; v < height; v++) {
                         int index = i * channel * width * height + j * width * height + k * height + v;
-                        if (__half2float(h1[index]) != __half2float(h1[index])) diff++;
+                        if (__half2float(h1[index]) != __half2float(h2[index])) diff++;
                     }
                 }
             }
         }
         delete[] h1;
         delete[] h2;
+        //printf("%.2f:%.2f\n", __half2float(h1[0]), __half2float(h2[0]));
     } else {
         for (int i = 0; i < batch; i++) {
             for (int j = 0; j < channel; j++) {
@@ -146,7 +147,7 @@ void MyTensor::cmp_half(half *item1, half *item2, int batch, int channel, int wi
             }
         }
     }
-    printf("total: %d, diff: %d\n", total, diff);
+    printf("total: %d, diff: %d, %.2f\n", total, diff, (double)diff / total * 100);
 }
 
 void MyTensor::print_half_device(half *item, int batch, int channel, int width, int height) {
@@ -185,10 +186,12 @@ MyTensor::conv2d(int conv_num, int out_channel, int kernel_w, int kernel_h, int 
     auto kernel = new MyTensor(out_channel, this->getChannel(), kernel_w, kernel_h, true, path);
     auto conv_t = new CudaTime();
     conv_t->initAndStart();
+    auto myt = new MyTensor(out->batch, out->channel, out->width, out->height, true);
     //conv2d_device_cudnn(this->tensor, kernel->tensor, batch, channel, kernel->batch, width, height, kernel->width,
      //                   kernel->height, stride, padding, out->getTensor());
     conv2d_device_spmma(this->tensor, kernel->tensor, batch, channel, kernel->batch, width, height, kernel->width,
                         kernel->height, stride, padding, out->getTensor());
+    //cmp_half(out->getTensor(), myt->getTensor(), out->batch, out->channel, out->width, out->height, true);
     conv_t->endAndExportTimeToFile("../../data/time/resnet50_spmma_time.txt", "interface conv" + std::to_string(conv_num) + ": ");
     //conv_t->endAndExportTimeToFile("../../data/time/resnet50_cudnn_time.txt", "cudnn conv" + std::to_string(conv_num) + ": ");
     kernel->free_tensor();

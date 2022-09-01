@@ -147,6 +147,37 @@ void conv2d_device_cudnn(half *feature, half *kernel, int batch, int in_c, int o
 //    }
 }
 
+void conv2d_device_cusparse(half *feature, half *kernel, int batch, int in_c, int out_c,
+                         int f_w, int f_h, int k_w, int k_h, int stride, int padding, half *out) {
+    // 0. malloc
+    int out_w = (f_w + 2 * padding - k_w) / stride + 1;
+    int out_h = (f_h + 2 * padding - k_h) / stride + 1;
+    half *im2col_out, *gemm_out, *col_im_out;
+    CHECK_CUDA(cudaMalloc(&im2col_out, sizeof(half) * batch * out_w * out_h * in_c * k_w * k_h))
+    CHECK_CUDA(cudaMalloc(&gemm_out, sizeof(half) * batch * out_w * out_h * out_c))
+    CHECK_CUDA(cudaMalloc(&col_im_out,  sizeof(half) * out_c * batch * out_w * out_h))
+    // 1. im2col
+    im2col_gpu(feature, batch, in_c, f_h, f_w, k_h, k_w, padding, padding,
+               stride, stride, 1, 1, im2col_out);
+    // im2col_cudnn(feature, batch, in_c, out_c, f_h, f_w, k_h, k_w, stride, padding, im2col_out);
+    // 2. gemm
+    cusparse_gemm_csr_device(kernel, im2col_out, out_c, in_c * k_h * k_w, batch * out_w * out_h, gemm_out);
+    //cusparse_gemm_coo_device(kernel, im2col_out, out_c, in_c * k_h * k_w, batch * out_w * out_h, gemm_out);
+
+    // 3. col2im
+    int num_kernels = batch * out_w * out_h;
+    im2col_rev_kernel<<<GET_BLOCKS(num_kernels), CUDA_NUM_THREADS>>>(
+            num_kernels, gemm_out, batch, out_c, out_h, out_w, col_im_out);
+
+    // 4. copy to output
+    CHECK_CUDA(cudaMemcpy(out, col_im_out, sizeof(half) * out_c * batch * out_w * out_h, cudaMemcpyDeviceToDevice))
+
+    // 5. free
+    CHECK_CUDA(cudaFree(im2col_out))
+    CHECK_CUDA(cudaFree(gemm_out))
+    CHECK_CUDA(cudaFree(col_im_out))
+}
+
 void bn_cudnn(half *feature, int batch, int channel, int width, int height, half *out) {
     // handle
     cudnnHandle_t handle;

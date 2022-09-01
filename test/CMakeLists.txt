@@ -3,7 +3,7 @@ project(Test CUDA)
 
 set(CMAKE_CUDA_STANDARD 17)
 
-add_executable(Test test_main.cu ../spmma/utils/CudaTime.cuh ../spmma/utils/CudaTime.cu)
+add_executable(Test test_main.cu ../spmma/utils/CudaTime.cuh ../spmma/utils/CudaTime.cu test_event.cu test_event.cuh)
 
 set_target_properties(Test PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON)
