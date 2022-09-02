@@ -119,7 +119,10 @@ void Transformer::forward(const int *en_in, const int *de_in, MatrixHalf *out) {
     //en_pe_out->print("pe:", true);
     // 3. self-attention + mlp  xN
     auto encoder_out = new MatrixHalf(batch, en_max_len, d_model, true);
+    auto enc_t = new CudaTime();
+    enc_t->initAndStart();
     encoder->forwardN(en_pe_out, encoder_out, 6);
+    enc_t->endAndPrintTime("encoder:");
     //encoder_out->print("encoder", true);
     // decoder
     // 1. embedding

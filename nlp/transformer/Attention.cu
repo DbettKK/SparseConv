@@ -44,11 +44,11 @@ void Attention::forward(MatrixHalf *inputQ, MatrixHalf *inputK, MatrixHalf *inpu
     V->free_matrix();
     // 3. 多头注意力
     auto concat = new MatrixHalf(inputQ->getBatch(), inputQ->getRow(), inputQ->getCol(), true);
-    auto attn_t = new CudaTime();
-    attn_t->initAndStart();
+    //auto attn_t = new CudaTime();
+    //attn_t->initAndStart();
     attn(outQ->getMatrix(), outK->getMatrix(), outV->getMatrix(), concat->getMatrix(),
          inputQ->getBatch(), inputK->getRow(), inputQ->getRow(), inputQ->getCol(), mask);
-    attn_t->endAndPrintTime("attn: ");
+    //attn_t->endAndPrintTime("attn: " + std::to_string(which_part));
 //    attn_batch(outQ->getMatrix(), outK->getMatrix(), outV->getMatrix(), concat->getMatrix(),
 //         inputQ->getBatch(), inputK->getRow(), inputQ->getRow(), mask);
     // 4. 再一个线性层 运算结果concat并和 W0 运算得到输出
@@ -102,7 +102,7 @@ void Attention::attn(half *Q, half *K, half *V, half *out, int batch, int en_max
             //CHECK_CUDA(cudaMalloc(&tmp, sizeof(half) * de_max_len * ebd / heads))
             //auto tt = new CudaTime();
             //tt->initAndStart();
-            sparse_mma_gemm_device(softmax_out, V + each_block * en_max_len, de_max_len, en_max_len,
+            sparse_mma_gemm_noPad_device(softmax_out, V + each_block * en_max_len, de_max_len, en_max_len,
                                    ebd / heads, true, out + each_block * de_max_len);
             //tt->endAndExportTimeToFile("../../data/trans_time.txt", "spmma: ");
             //cublas_gemm_device(softmax_out, V + each_block * en_max_len, de_max_len, en_max_len, ebd / heads, out + each_block * de_max_len);

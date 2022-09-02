@@ -77,6 +77,6 @@ void test_cusparse() {
     test->generate_zero_C(&dOut2);
 
     sparse_mma_gemm_batches_device(dA, dB, 2, m, k, n, true, dOut);
-    cusparse_gemm_coo_batched_device(dA, dB, 2, m, k, n, dOut2);
+    //cusparse_gemm_coo_batched_device(dA, dB, 2, m, k, n, dOut2);
     test->matC_diff(dOut, dOut2);
 }
