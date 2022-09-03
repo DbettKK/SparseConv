@@ -71,6 +71,7 @@ void CudaTime::endAndPrintTime(const std::string &msg) {
 void CudaTime::endAndExportTimeToFile(const std::string path, const std::string prefix_msg) {
     float time = endAndGetTime();
     std::ofstream out(path, std::ios::app);
-    out << prefix_msg << time << "ms\n";
+    if (path.length() == 0) out <<  time << "\n";
+    else out << prefix_msg << time << "\n";
     out.close();
 }

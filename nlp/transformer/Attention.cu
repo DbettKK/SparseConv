@@ -100,13 +100,13 @@ void Attention::attn(half *Q, half *K, half *V, half *out, int batch, int en_max
             // 5. 和V乘
             //half *tmp;
             //CHECK_CUDA(cudaMalloc(&tmp, sizeof(half) * de_max_len * ebd / heads))
-            //auto tt = new CudaTime();
-            //tt->initAndStart();
-            sparse_mma_gemm_noPad_device(softmax_out, V + each_block * en_max_len, de_max_len, en_max_len,
-                                   ebd / heads, true, out + each_block * de_max_len);
-            //tt->endAndExportTimeToFile("../../data/trans_time.txt", "spmma: ");
+            auto tt = new CudaTime();
+            tt->initAndStart();
+            sparse_mma_gemm_noPad_device(softmax_out, V + each_block * en_max_len, de_max_len, en_max_len, ebd / heads, true, out + each_block * de_max_len);
             //cublas_gemm_device(softmax_out, V + each_block * en_max_len, de_max_len, en_max_len, ebd / heads, out + each_block * de_max_len);
             //cusparse_gemm_csr_device(softmax_out, V + each_block * en_max_len, de_max_len, en_max_len, ebd / heads, out + each_block * de_max_len);
+            //cusparse_gemm_coo_device(softmax_out, V + each_block * en_max_len, de_max_len, en_max_len, ebd / heads, out + each_block * de_max_len);
+            tt->endAndExportTimeToFile("../../data/trans_time.txt", "");
             //MatrixHalf::cmp(tmp, out + each_block * de_max_len, de_max_len * ebd / heads);
         }
     }

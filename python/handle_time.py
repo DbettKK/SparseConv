@@ -1,4 +1,5 @@
 import re
+import os
 
 
 def handle(path: str):
@@ -69,8 +70,22 @@ def handle_9_1(path: str):
         print('conv%s' % layer)
 
 
+def handle3(path: str):
+    with open(path, 'r') as f:
+        contents = f.readlines()
+    total = 0.0
+    for i, content in enumerate(contents):
+        if i != 0:
+            time = float(content)
+            total += time
+    print("times: ", len(contents) - 1)
+    print(total / (len(contents) - 1))
+    os.remove(path)
+
+
 if __name__ == '__main__':
     # handle('C://Users//dbettkk//Desktop//新建文件夹//resnet50_cudnn_time.txt')
     # handle('C://Users//dbettkk//Desktop//新建文件夹//resnet50_spmma_time.txt')
     # handle2('C://Users//dbettkk//Desktop//test_time//8.29//trans_time_16.txt')
-    handle_9_1('C://Users//dbettkk//Desktop//test_time//9.1//resnet50_cudnn_time.txt')
+    # handle_9_1('C://Users//dbettkk//Desktop//test_time//9.1//resnet50_cudnn_time.txt')
+    handle3("data/trans_time.txt")
