@@ -10,7 +10,7 @@
 #include <iostream>
 #include<cmath>
 #include "../utils/checks.cuh"
-#include "../../../spmma/utils/CudaTime.cuh"
+#include "../../../utils/CudaTime.cuh"
 
 __global__ void reshape_multi_head(half *A, half *B, int row, int col, int heads);
 
